@@ -13,7 +13,7 @@ const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate()
   const { session } = useAuth()
   const { languageCode } = useUserPreferences()
-  const { t } = useTranslation(languageCode)
+  const { t } = useTranslation(languageCode || 'en')
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -49,7 +49,7 @@ const ResetPasswordPage: React.FC = () => {
       setSuccess(true)
 
       setTimeout(() => {
-        const loginPath = buildLanguagePath('/login', languageCode)
+        const loginPath = buildLanguagePath('/login', languageCode || 'en')
         navigate(loginPath, {
           state: {
             message: t('password_updated_success')
@@ -69,7 +69,7 @@ const ResetPasswordPage: React.FC = () => {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div>
-            <Link to={buildLanguagePath('/', languageCode)} className="flex items-center justify-center space-x-2 mb-8">
+            <Link to={buildLanguagePath('/', languageCode || 'en')} className="flex items-center justify-center space-x-2 mb-8">
               <img
                 src={getLogoUrl()}
                 alt="TVSHOWup"
@@ -119,7 +119,7 @@ const ResetPasswordPage: React.FC = () => {
         </div>
 
         <div>
-          <Link to={buildLanguagePath('/', languageCode)} className="flex items-center justify-center space-x-2 mb-8">
+          <Link to={buildLanguagePath('/', languageCode || 'en')} className="flex items-center justify-center space-x-2 mb-8">
             <img
               src={getLogoUrl()}
               alt="TVSHOWup"

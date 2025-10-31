@@ -1,6 +1,8 @@
 // Translations for the application
 // This file contains all the translations for the application
 
+import { useMemo } from 'react';
+
 // Export supported languages
 export const supportedLanguages: Record<string, string> = {
   'en': 'English',
@@ -2634,11 +2636,13 @@ const translations = {
   el
 };
 
-// Translation hook
+// Translation hook - now a proper React hook
 export const useTranslation = (languageCode: string) => {
   // Default to English if language not supported
-  const language = translations[languageCode as keyof typeof translations] || translations.en;
-  
+  const language = useMemo(() => {
+    return translations[languageCode as keyof typeof translations] || translations.en;
+  }, [languageCode]);
+
   return {
     t: language
   };
