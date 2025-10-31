@@ -35,10 +35,10 @@ function getLanguageCode(fullLanguage) {
 }
 function getNoResultsMessage(languageCode) {
   const messages = {
-    "tr": "Üzgünüm, bu arama için sonuç bulamadım. Lütfen farklı bir şey deneyin - örneğin sadece bir tür veya platform söylerseniz size harika öneriler sunabilirim!",
-    "de": "Es tut mir leid, ich konnte keine Ergebnisse für diese Suche finden. Bitte versuchen Sie etwas anderes - zum Beispiel, nennen Sie einfach ein Genre oder eine Plattform und ich kann Ihnen tolle Empfehlungen geben!",
-    "fr": "Désolé, je n'ai pas trouvé de résultats pour cette recherche. Veuillez essayer quelque chose de différent - par exemple, mentionnez simplement un genre ou une plateforme et je peux vous donner d'excellentes recommandations!",
-    "es": "Lo siento, no pude encontrar resultados para esa búsqueda. Por favor, intenta algo diferente - por ejemplo, solo menciona un género o plataforma y puedo darte excelentes recomendaciones!",
+    "tr": "Bu kriterlere uygun içerik bulamadım. Farklı bir arama deneyebilir misiniz? Örneğin: 'Netflix'te korku filmleri', 'Gain'de komedi dizileri', veya '2024'te çıkan aksiyon filmleri' gibi.",
+    "de": "Ich konnte keine Inhalte mit diesen Kriterien finden. Versuchen Sie eine andere Suche? Zum Beispiel: 'Horrorfilme auf Netflix', 'Komödienserien auf Gain' oder 'Actionfilme aus 2024'.",
+    "fr": "Je n'ai pas trouvé de contenu correspondant à ces critères. Voulez-vous essayer une autre recherche? Par exemple: 'films d'horreur sur Netflix', 'séries comiques sur Gain' ou 'films d'action de 2024'.",
+    "es": "No encontré contenido con estos criterios. ¿Quieres probar otra búsqueda? Por ejemplo: 'películas de terror en Netflix', 'series de comedia en Gain' o 'películas de acción de 2024'.",
     "it": "Mi dispiace, non ho trovato risultati per questa ricerca. Prova qualcosa di diverso - ad esempio, menziona semplicemente un genere o una piattaforma e posso darti ottimi consigli!",
     "pt": "Desculpe, não encontrei resultados para essa pesquisa. Por favor, tente algo diferente - por exemplo, mencione apenas um gênero ou plataforma e posso dar ótimas recomendações!",
     "nl": "Sorry, ik kon geen resultaten vinden voor die zoekopdracht. Probeer iets anders - bijvoorbeeld, noem gewoon een genre of platform en ik kan je geweldige aanbevelingen geven!",
@@ -51,7 +51,7 @@ function getNoResultsMessage(languageCode) {
     "ja": "申し訳ございません、その検索結果が見つかりませんでした。別のものを試してください - たとえば、ジャンルやプラットフォームを挙げていただければ、素晴らしいおすすめをご提供できます！",
     "ko": "죄송합니다. 해당 검색에 대한 결과를 찾을 수 없습니다. 다른 것을 시도해보세요 - 예를 들어 장르나 플랫폼만 언급하면 훌륭한 추천을 해드릴 수 있습니다!",
     "zh": "抱歉，我找不到该搜索的结果。请尝试其他内容 - 例如，只需提及类型或平台，我就可以为您提供很棒的推荐！",
-    "en": "Sorry, I couldn't find results for that search. Please try something different - for example, just mention a genre or platform and I can give you great recommendations!"
+    "en": "I couldn't find content matching these criteria. Want to try a different search? For example: 'horror movies on Netflix', 'comedy series on Gain', or 'action movies from 2024'."
   };
   return messages[languageCode] || messages["en"];
 }
@@ -257,6 +257,33 @@ Title:`;
     }
     const topicChanged = detectTopicChange(query, conversationHistory, params);
     let results = await searchTMDB(params, tmdbApiKey, countryCode, language);
+
+    // Check if this is a platform-specific query with no results
+    const isPlatformQuery = (params.providers && params.providers.length > 0) || (params.withNetworks && params.withNetworks.length > 0);
+
+    if (results.length === 0 && isPlatformQuery) {
+      console.log("⚠️ No results found for platform-specific query - returning empty with message");
+      const responseText = await generateFriendlyResponse(query, params, results, openAIKey, languageCode, personInfo, contentInfo);
+      return new Response(JSON.stringify({
+        success: true,
+        results: [],
+        responseText,
+        isOffTopic: false,
+        topicChanged: false,
+        params,
+        personInfo,
+        contentInfo,
+        detectedMood: params.detectedMood || null,
+        moodConfidence: params.moodConfidence || null,
+        isVagueQuery: params.isVagueQuery || false
+      }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      });
+    }
+
     if (results.length === 0 && (personInfo || contentInfo)) {
       console.log("🔄 No direct results, fetching related content...");
       if (personInfo) {
@@ -802,6 +829,8 @@ STREAMING PROVIDERS (use provider IDs):
 - Apple TV+: 350
 - Paramount+: 531
 - Exxen: 1791
+- TOD: 1750
+- TOD TV: 1826
 
 TURKISH NETWORKS (use network IDs in withNetworks):
 - Exxen (network): 4405
@@ -817,6 +846,7 @@ PROVIDER NAME VARIATIONS:
 - "Prime", "Amazon Prime Video", "Amazon" → Amazon Prime (9)
 - "Disney Plus", "Disney", "Disney+" → Disney+ (337)
 - "Exxen" → Streaming: 1791, Network: 4405 (use both if mentioned)
+- "TOD", "tod", "Tod TV" → TOD (1750) or TOD TV (1826)
 
 TURKISH NETWORK NAME VARIATIONS:
 - "Gain", "Gain TV" → Gain (4409)
@@ -825,7 +855,53 @@ TURKISH NETWORK NAME VARIATIONS:
 - "Star TV", "Star", "StarTV" → Star TV (778)
 - "atv", "ATV", "a tv" → atv (36)
 
-CRITICAL: When user mentions Turkish networks (Exxen, Gain, Kanal D, Show TV, Star TV, atv), use withNetworks array for network IDs
+🚨🚨🚨 CRITICAL PLATFORM/NETWORK RULES 🚨🚨🚨
+
+STREAMING PLATFORMS → Use "providers" array (Netflix, Prime, Disney+, HBO Max, Hulu, Apple TV+, Exxen, TOD):
+- "Netflix'te neler var", "Netflixte", "Netflix'te", "what's on Netflix" → contentType:"both", providers:[8], minRating:0
+- "Exxende neler var", "Exxen'de", "Exxende", "on Exxen" → contentType:"both", providers:[1791], minRating:0
+- "TOD'da neler var", "TOD'da", "TODda", "on TOD" → contentType:"both", providers:[1750], minRating:0
+- "Netflix filmler" → contentType:"movie", providers:[8], minRating:0
+- "Apple TV+ dizileri" → contentType:"tv", providers:[350], minRating:0
+- "Prime'da", "Primeda", "Amazon'da" → contentType:"both", providers:[9], minRating:0
+- "Disney+'da", "Disney'de", "Disneyde" → contentType:"both", providers:[337], minRating:0
+
+TV NETWORKS → Use "withNetworks" array (Gain, Kanal D, Show TV, Star TV, atv, Exxen):
+- "Gain'de neler var", "Gainde", "Gain'de", "what's on Gain" → contentType:"tv", withNetworks:[4409], minRating:0
+- "Gain ne sunuyor", "Gain'de ne izleyebilirim" → contentType:"tv", withNetworks:[4409], minRating:0
+- "Gain'de komedi dizileri", "Gainde komedi" → contentType:"tv", withNetworks:[4409], genres:[35], minRating:0
+- "Show TV'de", "Show TVde", "ShowTVde yayınlanan diziler" → contentType:"tv", withNetworks:[750], minRating:0
+- "Kanal D'de", "Kanal Dde", "Kanaldde ne var" → contentType:"tv", withNetworks:[439], minRating:0
+- "Star TV'de", "Star TVde", "StarTVde diziler" → contentType:"tv", withNetworks:[778], minRating:0
+- "atv'de", "atvde", "ATV'de neler var" → contentType:"tv", withNetworks:[36], minRating:0
+
+🚨 CRITICAL: TURKISH GRAMMAR PATTERNS 🚨
+Turkish uses suffixes attached directly to platform names. ALWAYS recognize these:
+
+LOCATIVE CASE (-de/-da/-te/-ta):
+- "Netflixte" = "Netflix'te" = "on Netflix"
+- "Exxende" = "Exxen'de" = "on Exxen"
+- "Gainde" = "Gain'de" = "on Gain"
+- "TODda" = "TOD'da" = "on TOD"
+- "Primeda" = "Prime'da" = "on Prime"
+- "Disneyde" = "Disney'de" = "on Disney"
+
+Extract platform name by removing: -de, -da, -te, -ta, -'de, -'da, -'te, -'ta
+
+RULE: When user asks about a platform (ANY language):
+- Turkish: "Xte/Xde neler var", "X'te neler var", "X platformunda", "X dizileri", "Xte ne var", "Xde film"
+- English: "what's on X", "shows on X", "X content", "on X"
+- German: "was gibt es auf X", "Serien auf X"
+- French: "qu'est-ce qu'il y a sur X", "séries sur X"
+- Spanish: "qué hay en X", "series en X"
+
+STEPS:
+1. Extract platform name (remove Turkish suffixes if present)
+2. Identify if X is streaming provider (providers) or TV network (withNetworks)
+3. ALWAYS set contentType: "tv" for networks, "both" or appropriate type for streaming
+4. ALWAYS set minRating: 0 (do NOT filter by rating unless explicitly requested)
+5. Keep it simple - just platform + basic filters
+6. This applies to ALL platforms: Netflix, Prime, Disney+, HBO Max, Gain, Kanal D, Show TV, TOD, etc.
 
 GENRES: Action: 28, Adventure: 12, Animation: 16, Comedy: 35, Crime: 80, Documentary: 99, Drama: 18, Family: 10751, Fantasy: 14, Horror: 27, Mystery: 9648, Romance: 10749, Sci-Fi: 878, Thriller: 53, War: 10752, Western: 37
 
@@ -1068,7 +1144,7 @@ Respond ONLY with JSON:
         Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages,
         response_format: {
           type: "json_object"
