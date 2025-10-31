@@ -259,38 +259,52 @@ const SettingsPage: React.FC = () => {
   // Handle profile update
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Profile update started')
-    if (!user) return
-    
+    console.log('🚀 Profile update started')
+    if (!user) {
+      console.error('❌ No user found')
+      return
+    }
+
     try {
       setSavingProfile(true)
       setProfileError(null)
       setProfileSuccess(false)
-      
+
       // Upload avatar if a new file is selected
       let finalAvatarUrl = avatarUrl
       if (avatarFile) {
-        console.log('New avatar file detected, starting upload')
+        console.log('📸 New avatar file detected, starting upload:', {
+          fileName: avatarFile.name,
+          fileSize: avatarFile.size,
+          fileType: avatarFile.type
+        })
         try {
           const uploadedUrl = await uploadAvatar()
           if (uploadedUrl) {
             finalAvatarUrl = uploadedUrl
-            console.log('Avatar upload successful, setting URL to:', uploadedUrl)
+            console.log('✅ Avatar upload successful, URL:', uploadedUrl)
+          } else {
+            console.error('❌ Upload returned null URL')
+            throw new Error('Avatar upload failed - no URL returned')
           }
         } catch (error: any) {
-          console.error('Error uploading avatar:', error)
+          console.error('❌ Error uploading avatar:', error)
+          setSavingProfile(false)
           setProfileError(error.message || 'Failed to upload avatar')
           return
         }
+      } else {
+        console.log('ℹ️ No new avatar file selected, keeping existing URL:', avatarUrl)
       }
-      
+
       // Update profile in the database
-      console.log('Updating profile with new data:', {
+      console.log('💾 Updating profile in database with:', {
+        user_id: user.id,
         display_name: displayName,
         avatar_url: finalAvatarUrl
       })
-      
-      const { error: profileError } = await supabase
+
+      const { data: updateData, error: profileError } = await supabase
         .from('user_profiles')
         .update({
           display_name: displayName,
@@ -298,55 +312,70 @@ const SettingsPage: React.FC = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
-      
-      if (profileError) throw new Error(`Profile update failed: ${profileError.message}`)
-      
+        .select()
+
+      if (profileError) {
+        console.error('❌ Database update error:', profileError)
+        throw new Error(`Profile update failed: ${profileError.message}`)
+      }
+
+      console.log('✅ Database update successful:', updateData)
+
       // Update email if changed
       if (email !== user.email) {
+        console.log('📧 Email change detected, updating...')
         const { error: emailError } = await supabase.auth.updateUser({
           email: email
         })
-        
-        if (emailError) throw new Error(`Email update failed: ${emailError.message}`)
+
+        if (emailError) {
+          console.error('❌ Email update error:', emailError)
+          throw new Error(`Email update failed: ${emailError.message}`)
+        }
+        console.log('✅ Email update successful')
       }
-      
+
       // Update user metadata with new display name
       const { error: metadataError } = await supabase.auth.updateUser({
         data: {
           displayName: displayName
         }
       })
-      
+
       if (metadataError) {
-        console.warn('Warning: Could not update user metadata:', metadataError)
+        console.warn('⚠️ Warning: Could not update user metadata:', metadataError)
+      } else {
+        console.log('✅ User metadata updated')
       }
-      
+
       setProfileSuccess(true)
-      
+
       // Update local state to reflect the changes
-      // Add cache busting parameter to prevent browser caching
       setAvatarUrl(finalAvatarUrl)
       const cacheBuster = `?t=${Date.now()}`
-      console.log('Setting final avatar URL with cache buster:', finalAvatarUrl + cacheBuster)
-      setAvatarPreview(finalAvatarUrl ? finalAvatarUrl + cacheBuster : null)
+      const urlWithCache = finalAvatarUrl ? finalAvatarUrl + cacheBuster : null
+      console.log('🔄 Setting final avatar preview URL:', urlWithCache)
+      setAvatarPreview(urlWithCache)
       setAvatarFile(null)
-      
+
       // Fetch updated profile to refresh the context
       if (user) {
-        console.log('🔄 Fetching updated profile after changes')
+        console.log('🔄 Fetching updated profile from database...')
         await fetchUserProfile(user.id)
+        console.log('✅ Profile refresh complete')
       }
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => {
         setProfileSuccess(false)
       }, 3000)
-      
+
     } catch (error: any) {
-      console.error('Error updating profile:', error)
+      console.error('❌ Error updating profile:', error)
       setProfileError(error.message || 'Failed to update profile')
     } finally {
       setSavingProfile(false)
+      console.log('🏁 Profile update process completed')
     }
   }
 

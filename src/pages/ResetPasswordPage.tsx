@@ -26,6 +26,11 @@ const ResetPasswordPage: React.FC = () => {
 
   useEffect(() => {
     const detectLanguageForResetPage = async () => {
+      if (!setLanguageCode) {
+        console.warn('⚠️ setLanguageCode is not available')
+        return
+      }
+
       const cookieLanguage = document.cookie
         .split('; ')
         .find(row => row.startsWith('user_language='))
@@ -100,7 +105,7 @@ const ResetPasswordPage: React.FC = () => {
     };
 
     detectLanguageForResetPage();
-  }, [])
+  }, [setLanguageCode])
 
   // Check if we have valid reset token
   useEffect(() => {
@@ -130,37 +135,65 @@ const ResetPasswordPage: React.FC = () => {
 
         const code = searchParams.get('code')
         console.log('   - PKCE code present:', !!code)
+        console.log('   - PKCE code value:', code)
 
         if (code) {
-          console.log('   - Detected PKCE flow, waiting for Supabase to handle it automatically...')
+          console.log('   - Detected PKCE flow, trying to verify OTP token...')
 
-          let attempts = 0
-          const maxAttempts = 10
+          try {
+            console.log('   - Calling supabase.auth.verifyOtp()...')
+            const { data, error: verifyError } = await supabase.auth.verifyOtp({
+              token_hash: code,
+              type: 'recovery'
+            })
 
-          while (attempts < maxAttempts && mounted) {
-            await new Promise(resolve => setTimeout(resolve, 500))
+            console.log('   - Verify response data:', data)
+            console.log('   - Verify error:', verifyError)
 
-            const { data: { session } } = await supabase.auth.getSession()
-
-            if (session?.user) {
-              console.log('✅ PKCE session established automatically')
+            if (verifyError) {
+              console.error('❌ Error verifying OTP token:', {
+                message: verifyError.message,
+                status: verifyError.status,
+                name: verifyError.name,
+                fullError: verifyError
+              })
               if (mounted) {
-                setValidToken(true)
+                setError('This reset link is invalid or has already been used.')
                 setCheckingToken(false)
               }
               return
             }
 
-            attempts++
-            console.log(`   - Waiting for session... (attempt ${attempts}/${maxAttempts})`)
+            if (data?.session) {
+              console.log('✅ OTP verified and session established successfully', {
+                userId: data.session.user?.id,
+                email: data.session.user?.email
+              })
+              if (mounted) {
+                setValidToken(true)
+                setCheckingToken(false)
+              }
+              return
+            } else {
+              console.error('❌ No session in verify response')
+              if (mounted) {
+                setError('Failed to establish session.')
+                setCheckingToken(false)
+              }
+              return
+            }
+          } catch (err: any) {
+            console.error('❌ Exception during OTP verification:', {
+              message: err?.message,
+              stack: err?.stack,
+              fullError: err
+            })
+            if (mounted) {
+              setError('Failed to process reset link.')
+              setCheckingToken(false)
+            }
+            return
           }
-
-          if (mounted) {
-            console.error('❌ Timeout waiting for PKCE session')
-            setError('This reset link is invalid or has already been used.')
-            setCheckingToken(false)
-          }
-          return
         }
 
         const accessToken = searchParams.get('access_token') || hashParams.get('access_token')
@@ -197,20 +230,19 @@ const ResetPasswordPage: React.FC = () => {
           console.log('✅ User already has valid session')
           if (mounted) {
             setValidToken(true)
+            setCheckingToken(false)
           }
         } else {
           console.error('❌ Invalid reset link - no valid token or session')
           if (mounted) {
             setError('This reset link is invalid or has already been used.')
+            setCheckingToken(false)
           }
         }
       } catch (error) {
         console.error('❌ Error checking reset token:', error)
         if (mounted) {
           setError('An error occurred while checking the reset link.')
-        }
-      } finally {
-        if (mounted) {
           setCheckingToken(false)
         }
       }
@@ -221,7 +253,7 @@ const ResetPasswordPage: React.FC = () => {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [searchParams, languageCode])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
