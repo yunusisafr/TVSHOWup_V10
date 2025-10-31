@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, X, Check } from 'lucide-react'
 import { getLogoUrl } from '../lib/assets'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import { useUserPreferences } from '../contexts/UserPreferencesContext'
 import { useTranslation } from '../lib/i18n'
 import { Link } from 'react-router-dom'
@@ -10,8 +11,8 @@ import { buildLanguagePath } from '../lib/utils'
 
 const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const { languageCode, setLanguageCode } = useUserPreferences()
+  const { session } = useAuth()
+  const { languageCode } = useUserPreferences()
   const { t } = useTranslation(languageCode)
 
   const [password, setPassword] = useState('')
@@ -21,243 +22,10 @@ const ResetPasswordPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [validToken, setValidToken] = useState(false)
-  const [checkingToken, setCheckingToken] = useState(true)
-
-  useEffect(() => {
-    const detectLanguageForResetPage = async () => {
-      if (!setLanguageCode) {
-        console.warn('⚠️ setLanguageCode is not available')
-        return
-      }
-
-      const cookieLanguage = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('user_language='))
-        ?.split('=')[1];
-
-      if (!cookieLanguage) {
-        try {
-          const services = [
-            { url: 'https://ipapi.co/json/', field: 'country_code' },
-            { url: 'https://ip-api.com/json/', field: 'countryCode' }
-          ];
-
-          for (const service of services) {
-            try {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-              const response = await fetch(service.url, {
-                signal: controller.signal,
-                cache: 'no-cache'
-              });
-              clearTimeout(timeoutId);
-
-              if (response.ok) {
-                const data = await response.json();
-                const countryCode = data[service.field];
-
-                if (countryCode && typeof countryCode === 'string') {
-                  const upperCode = countryCode.toUpperCase();
-
-                  const countryToLanguageMap: Record<string, string> = {
-                    'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
-                    'TR': 'tr',
-                    'DE': 'de', 'AT': 'de', 'CH': 'de',
-                    'FR': 'fr', 'BE': 'fr',
-                    'ES': 'es', 'MX': 'es', 'AR': 'es',
-                    'IT': 'it',
-                    'PT': 'pt', 'BR': 'pt',
-                    'NL': 'nl',
-                    'RU': 'ru',
-                    'PL': 'pl',
-                    'GR': 'el',
-                    'JP': 'ja',
-                    'KR': 'ko',
-                    'CN': 'zh',
-                    'IN': 'hi',
-                    'SA': 'ar', 'AE': 'ar', 'EG': 'ar',
-                    'SE': 'sv',
-                    'NO': 'no',
-                    'DK': 'da',
-                    'FI': 'fi'
-                  };
-
-                  const detectedLang = countryToLanguageMap[upperCode] || 'en';
-                  console.log(`🌍 Reset Page: Detected country ${upperCode} → language: ${detectedLang}`);
-                  setLanguageCode(detectedLang);
-                  return;
-                }
-              }
-            } catch (error) {
-              continue;
-            }
-          }
-        } catch (error) {
-          console.error('Failed to detect location for reset page');
-        }
-
-        const browserLang = navigator.language.split('-')[0] || 'en';
-        console.log(`🗣️ Reset Page: Using browser language: ${browserLang}`);
-        setLanguageCode(browserLang);
-      }
-    };
-
-    detectLanguageForResetPage();
-  }, [setLanguageCode])
-
-  // Check if we have valid reset token
-  useEffect(() => {
-    let mounted = true
-
-    const checkResetToken = async () => {
-      try {
-        if (!mounted) return
-        setCheckingToken(true)
-
-        console.log('🔐 Reset Password Page - Token Validation')
-        console.log('   - Current URL:', window.location.href)
-        console.log('   - Language:', languageCode)
-
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const errorCode = hashParams.get('error_code')
-        const errorDescription = hashParams.get('error_description')
-
-        if (errorCode) {
-          console.error('❌ Supabase auth error:', errorCode, errorDescription)
-          if (mounted) {
-            setError('This reset link has expired or is invalid.')
-            setCheckingToken(false)
-          }
-          return
-        }
-
-        const code = searchParams.get('code')
-        console.log('   - PKCE code present:', !!code)
-        console.log('   - PKCE code value:', code)
-
-        if (code) {
-          console.log('   - Detected PKCE flow, trying to verify OTP token...')
-
-          try {
-            console.log('   - Calling supabase.auth.verifyOtp()...')
-            const { data, error: verifyError } = await supabase.auth.verifyOtp({
-              token_hash: code,
-              type: 'recovery'
-            })
-
-            console.log('   - Verify response data:', data)
-            console.log('   - Verify error:', verifyError)
-
-            if (verifyError) {
-              console.error('❌ Error verifying OTP token:', {
-                message: verifyError.message,
-                status: verifyError.status,
-                name: verifyError.name,
-                fullError: verifyError
-              })
-              if (mounted) {
-                setError('This reset link is invalid or has already been used.')
-                setCheckingToken(false)
-              }
-              return
-            }
-
-            if (data?.session) {
-              console.log('✅ OTP verified and session established successfully', {
-                userId: data.session.user?.id,
-                email: data.session.user?.email
-              })
-              if (mounted) {
-                setValidToken(true)
-                setCheckingToken(false)
-              }
-              return
-            } else {
-              console.error('❌ No session in verify response')
-              if (mounted) {
-                setError('Failed to establish session.')
-                setCheckingToken(false)
-              }
-              return
-            }
-          } catch (err: any) {
-            console.error('❌ Exception during OTP verification:', {
-              message: err?.message,
-              stack: err?.stack,
-              fullError: err
-            })
-            if (mounted) {
-              setError('Failed to process reset link.')
-              setCheckingToken(false)
-            }
-            return
-          }
-        }
-
-        const accessToken = searchParams.get('access_token') || hashParams.get('access_token')
-        const refreshToken = searchParams.get('refresh_token') || hashParams.get('refresh_token')
-        const type = searchParams.get('type') || hashParams.get('type')
-
-        if (type === 'recovery' && accessToken && refreshToken) {
-          console.log('   - Using legacy token flow')
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          })
-
-          if (sessionError) {
-            console.error('❌ Error setting session:', sessionError)
-            if (mounted) {
-              setError('This reset link is invalid or has already been used.')
-              setCheckingToken(false)
-            }
-            return
-          }
-
-          console.log('✅ Session set successfully')
-          if (mounted) {
-            setValidToken(true)
-            setCheckingToken(false)
-          }
-          return
-        }
-
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (session?.user) {
-          console.log('✅ User already has valid session')
-          if (mounted) {
-            setValidToken(true)
-            setCheckingToken(false)
-          }
-        } else {
-          console.error('❌ Invalid reset link - no valid token or session')
-          if (mounted) {
-            setError('This reset link is invalid or has already been used.')
-            setCheckingToken(false)
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error checking reset token:', error)
-        if (mounted) {
-          setError('An error occurred while checking the reset link.')
-          setCheckingToken(false)
-        }
-      }
-    }
-
-    checkResetToken()
-
-    return () => {
-      mounted = false
-    }
-  }, [searchParams, languageCode])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (password !== confirmPassword) {
       setError(t('passwords_do_not_match'))
       return
@@ -272,7 +40,6 @@ const ResetPasswordPage: React.FC = () => {
     setError('')
 
     try {
-      // Update the user's password
       const { error } = await supabase.auth.updateUser({
         password: password
       })
@@ -280,8 +47,7 @@ const ResetPasswordPage: React.FC = () => {
       if (error) throw error
 
       setSuccess(true)
-      
-      // Redirect to login after 3 seconds
+
       setTimeout(() => {
         const loginPath = buildLanguagePath('/login', languageCode)
         navigate(loginPath, {
@@ -290,7 +56,7 @@ const ResetPasswordPage: React.FC = () => {
           }
         })
       }, 3000)
-      
+
     } catch (error: any) {
       setError(error.message || t('error_updating_password'))
     } finally {
@@ -298,8 +64,35 @@ const ResetPasswordPage: React.FC = () => {
     }
   }
 
-  // Show loading while checking token
-  if (checkingToken) {
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <Link to={buildLanguagePath('/', languageCode)} className="flex items-center justify-center space-x-2 mb-8">
+              <img
+                src={getLogoUrl()}
+                alt="TVSHOWup"
+                className="h-11"
+              />
+            </Link>
+            <h2 className="text-center text-3xl font-extrabold text-white">
+              {t('password_updated_title')}
+            </h2>
+          </div>
+
+          <div className="bg-green-900/20 border border-green-500 rounded-lg p-4 flex items-center">
+            <Check className="w-5 h-5 text-green-500 mr-2" />
+            <p className="text-green-400">
+              {t('password_updated_redirecting')}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!session) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 text-center">
@@ -312,74 +105,9 @@ const ResetPasswordPage: React.FC = () => {
     )
   }
 
-  // Show error if invalid token
-  if (!validToken) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <Link to={buildLanguagePath('/', languageCode)} className="flex items-center justify-center space-x-2 mb-8">
-              <img 
-                src={getLogoUrl()} 
-                alt="TVSHOWup"
-                className="h-11"
-              />
-            </Link>
-            <h2 className="text-center text-3xl font-extrabold text-white">
-              {t('invalid_link_title')}
-            </h2>
-          </div>
-          
-          <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
-            <p className="text-red-400 text-center">{error}</p>
-          </div>
-          
-          <div className="text-center">
-            <Link
-              to={buildLanguagePath('/login', languageCode)}
-              className="text-primary-400 hover:text-primary-300"
-            >
-              {t('return_to_login')}
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Show success message
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div>
-            <Link to={buildLanguagePath('/', languageCode)} className="flex items-center justify-center space-x-2 mb-8">
-              <img 
-                src={getLogoUrl()} 
-                alt="TVSHOWup"
-                className="h-11"
-              />
-            </Link>
-            <h2 className="text-center text-3xl font-extrabold text-white">
-              {t('password_updated_title')}
-            </h2>
-          </div>
-          
-          <div className="bg-green-900/20 border border-green-500 rounded-lg p-4 flex items-center">
-            <Check className="w-5 h-5 text-green-500 mr-2" />
-            <p className="text-green-400">
-              {t('password_updated_redirecting')}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {/* Close Button */}
         <div className="absolute top-4 right-4">
           <button
             onClick={() => navigate(-1)}
@@ -392,8 +120,8 @@ const ResetPasswordPage: React.FC = () => {
 
         <div>
           <Link to={buildLanguagePath('/', languageCode)} className="flex items-center justify-center space-x-2 mb-8">
-            <img 
-              src={getLogoUrl()} 
+            <img
+              src={getLogoUrl()}
               alt="TVSHOWup"
               className="h-11"
             />
@@ -437,7 +165,7 @@ const ResetPasswordPage: React.FC = () => {
                 </button>
               </div>
             </div>
-            
+
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
                 {t('confirm_new_password')}
