@@ -2219,6 +2219,23 @@ const pt = {
   noResultsToSave: 'Nenhum resultado para salvar',
   errorSavingResults: 'Erro ao salvar resultados',
 
+  // Content Availability
+  contentNotAvailable: 'Este conteúdo não está disponível atualmente em {country} ou as informações de streaming ainda não foram adicionadas.',
+
+  // Person Details
+  personalInfo: 'Informações Pessoais',
+  knownFor: 'Conhecido por',
+  knownForDepartment: 'Conhecido por:',
+  gender: 'Gênero:',
+  birthday: 'Data de nascimento:',
+  deathday: 'Data de falecimento:',
+  placeOfBirth: 'Local de nascimento:',
+  biography: 'Biografia',
+  knownCredits: 'Conhecido por',
+  noBiographyAvailable: 'Nenhuma biografia disponível.',
+  age: 'idade',
+  years: 'anos',
+
   // Common list names translations
   listTranslations: {
     'My Favorites': 'Meus Favoritos',

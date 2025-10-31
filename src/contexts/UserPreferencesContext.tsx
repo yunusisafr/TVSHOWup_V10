@@ -59,40 +59,81 @@ const detectUserLocation = async (): Promise<string> => {
   try {
     console.log('🌍 Detecting user location...')
 
-    // Try first service only with shorter timeout
-    const service = { url: 'https://ipapi.co/json/', field: 'country_code' }
+    // Multiple geolocation services as fallback
+    const services = [
+      { url: 'https://ipapi.co/json/', field: 'country_code' },
+      { url: 'https://ip-api.com/json/', field: 'countryCode' },
+      { url: 'https://geolocation-db.com/json/', field: 'country_code' }
+    ]
 
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 1000)
+    // Try each service with timeout
+    for (const service of services) {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 3000)
 
-      const response = await fetch(service.url, {
-        signal: controller.signal,
-        cache: 'no-cache'
-      })
-      clearTimeout(timeoutId)
+        const response = await fetch(service.url, {
+          signal: controller.signal,
+          cache: 'no-cache'
+        })
+        clearTimeout(timeoutId)
 
-      if (response.ok) {
-        const data = await response.json()
-        const countryCode = data[service.field]
+        if (response.ok) {
+          const data = await response.json()
+          const countryCode = data[service.field]
 
-        if (countryCode && countryCode.length === 2) {
-          const upperCode = countryCode.toUpperCase()
-          console.log(`✅ Detected country: ${upperCode}`)
-          return upperCode
+          if (countryCode && typeof countryCode === 'string' && countryCode.length === 2) {
+            const upperCode = countryCode.toUpperCase()
+            console.log(`✅ Detected country from ${service.url}: ${upperCode}`)
+            return upperCode
+          }
         }
+      } catch (error) {
+        console.warn(`⚠️ Service ${service.url} failed, trying next...`)
+        continue
       }
-    } catch (error) {
-      console.warn(`❌ Geolocation service failed, using fallback`)
     }
 
     // Fallback to browser language detection
     const browserLanguage = navigator.language || navigator.languages?.[0] || 'en-US'
-    const countryFromLanguage = browserLanguage.split('-')[1]
+    const parts = browserLanguage.split('-')
 
-    if (countryFromLanguage && countryFromLanguage.length === 2) {
+    // If format is like "pt-BR", "en-US", etc., use the second part
+    if (parts.length > 1 && parts[1].length === 2) {
+      const countryFromLanguage = parts[1].toUpperCase()
       console.log(`✅ Country from browser language: ${countryFromLanguage}`)
-      return countryFromLanguage.toUpperCase()
+      return countryFromLanguage
+    }
+
+    // If format is just "pt", "en", etc., map language to default country
+    const languageToDefaultCountry: Record<string, string> = {
+      'en': 'US',
+      'tr': 'TR',
+      'de': 'DE',
+      'fr': 'FR',
+      'es': 'ES',
+      'it': 'IT',
+      'pt': 'BR',
+      'ru': 'RU',
+      'ja': 'JP',
+      'ko': 'KR',
+      'zh': 'CN',
+      'ar': 'SA',
+      'hi': 'IN',
+      'nl': 'NL',
+      'sv': 'SE',
+      'no': 'NO',
+      'da': 'DK',
+      'fi': 'FI',
+      'pl': 'PL',
+      'el': 'GR'
+    }
+
+    const langCode = parts[0].toLowerCase()
+    if (languageToDefaultCountry[langCode]) {
+      const mappedCountry = languageToDefaultCountry[langCode]
+      console.log(`✅ Mapped language ${langCode} to country: ${mappedCountry}`)
+      return mappedCountry
     }
 
     // Final fallback

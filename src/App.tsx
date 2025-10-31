@@ -37,88 +37,196 @@ import UserManagement from './pages/admin/UserManagement';
 import AdManagement from './pages/admin/AdManagement';
 
 function RootRedirect() {
-  // Get language from cookies immediately, no loading needed
-  const savedLanguage = Cookies.get('user_language');
-  const targetLanguage = savedLanguage || detectBrowserLanguage();
+  const [targetLang, setTargetLang] = React.useState<string | null>(null);
 
-  console.log(`🏠 Root redirect: redirecting to /${targetLanguage}`);
-  return <Navigate to={`/${targetLanguage}`} replace />;
+  React.useEffect(() => {
+    const detectLanguage = async () => {
+      console.log('🏠 Root access without language code - detecting location...');
+
+      // Clear any existing preferences to force fresh detection
+      Cookies.remove('user_language', { path: '/' });
+      Cookies.remove('user_country', { path: '/' });
+
+      // Detect user's actual location via IP
+      try {
+        const services = [
+          { url: 'https://ipapi.co/json/', field: 'country_code' },
+          { url: 'https://ip-api.com/json/', field: 'countryCode' }
+        ];
+
+        for (const service of services) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            const response = await fetch(service.url, {
+              signal: controller.signal,
+              cache: 'no-cache'
+            });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data = await response.json();
+              const countryCode = data[service.field];
+
+              if (countryCode && typeof countryCode === 'string') {
+                const upperCode = countryCode.toUpperCase();
+                console.log(`✅ Detected country: ${upperCode}`);
+
+                // Map country to language
+                const countryToLanguageMap: Record<string, string> = {
+                  'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
+                  'TR': 'tr',
+                  'DE': 'de', 'AT': 'de', 'CH': 'de',
+                  'FR': 'fr', 'BE': 'fr',
+                  'ES': 'es', 'MX': 'es', 'AR': 'es',
+                  'IT': 'it',
+                  'PT': 'pt', 'BR': 'pt',
+                  'NL': 'nl',
+                  'RU': 'ru',
+                  'PL': 'pl',
+                  'GR': 'el',
+                  'JP': 'ja',
+                  'KR': 'ko',
+                  'CN': 'zh',
+                  'IN': 'hi',
+                  'SA': 'ar', 'AE': 'ar', 'EG': 'ar',
+                  'SE': 'sv',
+                  'NO': 'no',
+                  'DK': 'da',
+                  'FI': 'fi'
+                };
+
+                const detectedLang = countryToLanguageMap[upperCode] || detectBrowserLanguage();
+                console.log(`🌐 Redirecting to language: ${detectedLang}`);
+                setTargetLang(detectedLang);
+                return;
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Service ${service.url} failed, trying next...`);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Location detection failed:', error);
+      }
+
+      // Fallback to browser language
+      const fallbackLang = detectBrowserLanguage();
+      console.log(`⚠️ Using fallback language: ${fallbackLang}`);
+      setTargetLang(fallbackLang);
+    };
+
+    detectLanguage();
+  }, []);
+
+  if (!targetLang) {
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-white">Loading...</div>
+    </div>;
+  }
+
+  return <Navigate to={`/${targetLang}`} replace />;
 }
 
 function LegacyRouteRedirect() {
   const location = useLocation();
+  const [targetLang, setTargetLang] = React.useState<string | null>(null);
 
-  // Get language from cookies immediately, no loading needed
-  const savedLanguage = Cookies.get('user_language');
-  const targetLanguage = savedLanguage || detectBrowserLanguage();
+  React.useEffect(() => {
+    const detectLanguage = async () => {
+      console.log('🔄 Legacy route without language code - detecting location...');
 
-  const newPath = `/${targetLanguage}${location.pathname}${location.search}${location.hash}`;
+      // Clear any existing preferences to force fresh detection
+      Cookies.remove('user_language', { path: '/' });
+      Cookies.remove('user_country', { path: '/' });
+
+      // Detect user's actual location via IP
+      try {
+        const services = [
+          { url: 'https://ipapi.co/json/', field: 'country_code' },
+          { url: 'https://ip-api.com/json/', field: 'countryCode' }
+        ];
+
+        for (const service of services) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            const response = await fetch(service.url, {
+              signal: controller.signal,
+              cache: 'no-cache'
+            });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data = await response.json();
+              const countryCode = data[service.field];
+
+              if (countryCode && typeof countryCode === 'string') {
+                const upperCode = countryCode.toUpperCase();
+                console.log(`✅ Detected country: ${upperCode}`);
+
+                // Map country to language
+                const countryToLanguageMap: Record<string, string> = {
+                  'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
+                  'TR': 'tr',
+                  'DE': 'de', 'AT': 'de', 'CH': 'de',
+                  'FR': 'fr', 'BE': 'fr',
+                  'ES': 'es', 'MX': 'es', 'AR': 'es',
+                  'IT': 'it',
+                  'PT': 'pt', 'BR': 'pt',
+                  'NL': 'nl',
+                  'RU': 'ru',
+                  'PL': 'pl',
+                  'GR': 'el',
+                  'JP': 'ja',
+                  'KR': 'ko',
+                  'CN': 'zh',
+                  'IN': 'hi',
+                  'SA': 'ar', 'AE': 'ar', 'EG': 'ar',
+                  'SE': 'sv',
+                  'NO': 'no',
+                  'DK': 'da',
+                  'FI': 'fi'
+                };
+
+                const detectedLang = countryToLanguageMap[upperCode] || detectBrowserLanguage();
+                console.log(`🌐 Redirecting to language: ${detectedLang}`);
+                setTargetLang(detectedLang);
+                return;
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Service ${service.url} failed, trying next...`);
+            continue;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Location detection failed:', error);
+      }
+
+      // Fallback to browser language
+      const fallbackLang = detectBrowserLanguage();
+      console.log(`⚠️ Using fallback language: ${fallbackLang}`);
+      setTargetLang(fallbackLang);
+    };
+
+    detectLanguage();
+  }, []);
+
+  if (!targetLang) {
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-white">Loading...</div>
+    </div>;
+  }
+
+  const newPath = `/${targetLang}${location.pathname}${location.search}${location.hash}`;
   console.log(`🔄 Legacy route redirect: ${location.pathname} -> ${newPath}`);
   return <Navigate to={newPath} replace />;
 }
 
-function ResetPasswordRedirect() {
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-
-  const queryString = searchParams.toString();
-  const hash = window.location.hash;
-
-  const redirectPath = `/reset-password${queryString ? `?${queryString}` : ''}${hash}`;
-
-  console.log('🔑 Reset Password - No Language Redirect');
-  console.log('   - Current path:', location.pathname);
-  console.log('   - Query params:', queryString || 'none');
-  console.log('   - Hash params:', hash || 'none');
-  console.log('   - Keeping path without language:', redirectPath);
-
-  return <Navigate to={redirectPath} replace />;
-}
-
-function RecoveryFlowRedirect() {
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    const code = searchParams.get('code');
-    const hashParams = new URLSearchParams(hash.substring(1));
-    const type = hashParams.get('type');
-    const accessToken = hashParams.get('access_token');
-
-    const currentPath = location.pathname;
-    const isAlreadyOnResetPage = currentPath === '/reset-password';
-
-    console.log('🔐 Recovery Flow Handler');
-    console.log('   - Current path:', currentPath);
-    console.log('   - Type:', type);
-    console.log('   - Access token present:', !!accessToken);
-    console.log('   - PKCE code present:', !!code);
-    console.log('   - Already on reset page:', isAlreadyOnResetPage);
-
-    if (isAlreadyOnResetPage) {
-      console.log('   - Already on reset page, no redirect needed');
-      return;
-    }
-
-    if (code) {
-      const queryString = searchParams.toString();
-      const redirectPath = `/reset-password?${queryString}`;
-      console.log('   - PKCE flow detected, redirecting to:', redirectPath);
-      window.location.href = redirectPath;
-      return;
-    }
-
-    if (type === 'recovery' && accessToken && hash) {
-      const redirectPath = `/reset-password${hash}`;
-      console.log('   - Legacy token flow, redirecting to:', redirectPath);
-      window.location.href = redirectPath;
-      return;
-    }
-  }, [location.pathname, searchParams]);
-
-  return null;
-}
 
 function RTLWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -145,7 +253,6 @@ function AppRoutes() {
 
   return (
     <>
-      <RecoveryFlowRedirect />
       <ScrollToTop />
       <SEOWrapper />
 
@@ -174,62 +281,65 @@ function AppRoutes() {
         </Routes>
       ) : (
         <div className="min-h-screen bg-gray-900">
-          <LanguageRouter>
-            <Header />
-            <main className="relative pt-[120px] md:pt-16">
-                        <Routes>
-                          {/* Block /admin routes on main domain - redirect to admin subdomain */}
-                          <Route path="/admin/*" element={<Navigate to="https://admin.tvshowup.com" replace />} />
+          <Routes>
+            {/* Special routes WITHOUT language prefix and WITHOUT LanguageRouter */}
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-                          {/* Language-aware Public Routes */}
-                          <Route path="/:lang" element={<HomePage />} />
-                          <Route path="/:lang/search" element={<SearchPage />} />
-                          <Route path="/:lang/movie/:id" element={<ContentDetailPage contentType="movie" />} />
-                          <Route path="/:lang/tv_show/:id" element={<ContentDetailPage contentType="tv_show" />} />
-                          <Route path="/:lang/movie/:id/:slug" element={<ContentDetailPage contentType="movie" />} />
-                          <Route path="/:lang/tv_show/:id/:slug" element={<ContentDetailPage contentType="tv_show" />} />
-                          <Route path="/:lang/watchlist" element={<WatchlistPage />} />
-                          <Route path="/:lang/login" element={<LoginPage />} />
-                          <Route path="/:lang/settings" element={<SettingsPage />} />
-                          <Route path="/:lang/person/:id" element={<PersonDetailPage />} />
-                          <Route path="/:lang/person/:id/:slug" element={<PersonDetailPage />} />
-                          <Route path="/:lang/share/:listId" element={<ShareListPage />} />
-                          <Route path="/:lang/public-watchlist/:listId" element={<PublicWatchlistPage />} />
-                          <Route path="/:lang/my-lists" element={<MyListsPage />} />
-                          <Route path="/:lang/pages/:slug" element={<StaticPage />} />
-                          <Route path="/:lang/discover-lists" element={<DiscoverListsPage />} />
-                          <Route path="/:lang/u/:username/mylist" element={<PublicWatchlistPage />} />
-                          <Route path="/:lang/u/:username/my-suggestion-lists" element={<UserPublicShareListsPage />} />
+            {/* All other routes go through LanguageRouter */}
+            <Route path="*" element={
+              <LanguageRouter>
+                <Header />
+                <main className="relative pt-[120px] md:pt-16">
+                  <Routes>
+                    {/* Block /admin routes on main domain - redirect to admin subdomain */}
+                    <Route path="/admin/*" element={<Navigate to="https://admin.tvshowup.com" replace />} />
 
-                          {/* Reset password route - NO language code */}
-                          <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    {/* Language-aware Public Routes */}
+                    <Route path="/:lang" element={<HomePage />} />
+                    <Route path="/:lang/search" element={<SearchPage />} />
+                    <Route path="/:lang/movie/:id" element={<ContentDetailPage contentType="movie" />} />
+                    <Route path="/:lang/tv_show/:id" element={<ContentDetailPage contentType="tv_show" />} />
+                    <Route path="/:lang/movie/:id/:slug" element={<ContentDetailPage contentType="movie" />} />
+                    <Route path="/:lang/tv_show/:id/:slug" element={<ContentDetailPage contentType="tv_show" />} />
+                    <Route path="/:lang/watchlist" element={<WatchlistPage />} />
+                    <Route path="/:lang/login" element={<LoginPage />} />
+                    <Route path="/:lang/settings" element={<SettingsPage />} />
+                    <Route path="/:lang/person/:id" element={<PersonDetailPage />} />
+                    <Route path="/:lang/person/:id/:slug" element={<PersonDetailPage />} />
+                    <Route path="/:lang/share/:listId" element={<ShareListPage />} />
+                    <Route path="/:lang/public-watchlist/:listId" element={<PublicWatchlistPage />} />
+                    <Route path="/:lang/my-lists" element={<MyListsPage />} />
+                    <Route path="/:lang/pages/:slug" element={<StaticPage />} />
+                    <Route path="/:lang/discover-lists" element={<DiscoverListsPage />} />
+                    <Route path="/:lang/u/:username/mylist" element={<PublicWatchlistPage />} />
+                    <Route path="/:lang/u/:username/my-suggestion-lists" element={<UserPublicShareListsPage />} />
 
-                          {/* OAuth callback route - NO language code */}
-                          <Route path="/auth/callback" element={<AuthCallbackPage />} />
-
-                          {/* Legacy routes without language prefix - redirect to user's browser language */}
-                          <Route path="/" element={<RootRedirect />} />
-                          <Route path="/search" element={<LegacyRouteRedirect />} />
-                          <Route path="/movie/:id" element={<LegacyRouteRedirect />} />
-                          <Route path="/tv_show/:id" element={<LegacyRouteRedirect />} />
-                          <Route path="/movie/:id/:slug" element={<LegacyRouteRedirect />} />
-                          <Route path="/tv_show/:id/:slug" element={<LegacyRouteRedirect />} />
-                          <Route path="/watchlist" element={<LegacyRouteRedirect />} />
-                          <Route path="/login" element={<LegacyRouteRedirect />} />
-                          <Route path="/settings" element={<LegacyRouteRedirect />} />
-                          <Route path="/person/:id" element={<LegacyRouteRedirect />} />
-                          <Route path="/person/:id/:slug" element={<LegacyRouteRedirect />} />
-                          <Route path="/share/:listId" element={<LegacyRouteRedirect />} />
-                          <Route path="/public-watchlist/:listId" element={<LegacyRouteRedirect />} />
-                          <Route path="/my-lists" element={<LegacyRouteRedirect />} />
-                          <Route path="/pages/:slug" element={<LegacyRouteRedirect />} />
-                          <Route path="/discover-lists" element={<LegacyRouteRedirect />} />
-                          <Route path="/u/:username/mylist" element={<LegacyRouteRedirect />} />
-                          <Route path="/u/:username/my-suggestion-lists" element={<LegacyRouteRedirect />} />
-                        </Routes>
-                      </main>
-                      <Footer />
-                    </LanguageRouter>
+                    {/* Legacy routes without language prefix - redirect to user's browser language */}
+                    <Route path="/" element={<RootRedirect />} />
+                    <Route path="/search" element={<LegacyRouteRedirect />} />
+                    <Route path="/movie/:id" element={<LegacyRouteRedirect />} />
+                    <Route path="/tv_show/:id" element={<LegacyRouteRedirect />} />
+                    <Route path="/movie/:id/:slug" element={<LegacyRouteRedirect />} />
+                    <Route path="/tv_show/:id/:slug" element={<LegacyRouteRedirect />} />
+                    <Route path="/watchlist" element={<LegacyRouteRedirect />} />
+                    <Route path="/login" element={<LegacyRouteRedirect />} />
+                    <Route path="/settings" element={<LegacyRouteRedirect />} />
+                    <Route path="/person/:id" element={<LegacyRouteRedirect />} />
+                    <Route path="/person/:id/:slug" element={<LegacyRouteRedirect />} />
+                    <Route path="/share/:listId" element={<LegacyRouteRedirect />} />
+                    <Route path="/public-watchlist/:listId" element={<LegacyRouteRedirect />} />
+                    <Route path="/my-lists" element={<LegacyRouteRedirect />} />
+                    <Route path="/pages/:slug" element={<LegacyRouteRedirect />} />
+                    <Route path="/discover-lists" element={<LegacyRouteRedirect />} />
+                    <Route path="/u/:username/mylist" element={<LegacyRouteRedirect />} />
+                    <Route path="/u/:username/my-suggestion-lists" element={<LegacyRouteRedirect />} />
+                  </Routes>
+                </main>
+                <Footer />
+              </LanguageRouter>
+            } />
+          </Routes>
           <AuthPromptModal />
           <CookieConsentBanner />
         </div>

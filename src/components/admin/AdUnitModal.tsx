@@ -7,9 +7,10 @@ interface AdUnitModalProps {
   onClose: () => void;
   onSave: () => void;
   adUnit?: AdUnit | null;
+  userId: string;
 }
 
-const AdUnitModal: React.FC<AdUnitModalProps> = ({ isOpen, onClose, onSave, adUnit }) => {
+const AdUnitModal: React.FC<AdUnitModalProps> = ({ isOpen, onClose, onSave, adUnit, userId }) => {
   const [formData, setFormData] = useState<AdUnitInput>({
     name: '',
     position: 'home_top',
@@ -67,8 +68,6 @@ const AdUnitModal: React.FC<AdUnitModalProps> = ({ isOpen, onClose, onSave, adUn
     setSaving(true);
 
     try {
-      const userId = (await adminAdService.getAllAdUnits())[0]?.created_by || 'admin';
-
       if (adUnit) {
         await adminAdService.updateAdUnit(adUnit.id, formData, userId);
       } else {

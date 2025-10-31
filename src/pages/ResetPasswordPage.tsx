@@ -11,9 +11,9 @@ import { buildLanguagePath } from '../lib/utils'
 const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { languageCode } = useUserPreferences()
+  const { languageCode, setLanguageCode } = useUserPreferences()
   const { t } = useTranslation(languageCode)
-  
+
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,6 +23,84 @@ const ResetPasswordPage: React.FC = () => {
   const [success, setSuccess] = useState(false)
   const [validToken, setValidToken] = useState(false)
   const [checkingToken, setCheckingToken] = useState(true)
+
+  useEffect(() => {
+    const detectLanguageForResetPage = async () => {
+      const cookieLanguage = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('user_language='))
+        ?.split('=')[1];
+
+      if (!cookieLanguage) {
+        try {
+          const services = [
+            { url: 'https://ipapi.co/json/', field: 'country_code' },
+            { url: 'https://ip-api.com/json/', field: 'countryCode' }
+          ];
+
+          for (const service of services) {
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+              const response = await fetch(service.url, {
+                signal: controller.signal,
+                cache: 'no-cache'
+              });
+              clearTimeout(timeoutId);
+
+              if (response.ok) {
+                const data = await response.json();
+                const countryCode = data[service.field];
+
+                if (countryCode && typeof countryCode === 'string') {
+                  const upperCode = countryCode.toUpperCase();
+
+                  const countryToLanguageMap: Record<string, string> = {
+                    'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
+                    'TR': 'tr',
+                    'DE': 'de', 'AT': 'de', 'CH': 'de',
+                    'FR': 'fr', 'BE': 'fr',
+                    'ES': 'es', 'MX': 'es', 'AR': 'es',
+                    'IT': 'it',
+                    'PT': 'pt', 'BR': 'pt',
+                    'NL': 'nl',
+                    'RU': 'ru',
+                    'PL': 'pl',
+                    'GR': 'el',
+                    'JP': 'ja',
+                    'KR': 'ko',
+                    'CN': 'zh',
+                    'IN': 'hi',
+                    'SA': 'ar', 'AE': 'ar', 'EG': 'ar',
+                    'SE': 'sv',
+                    'NO': 'no',
+                    'DK': 'da',
+                    'FI': 'fi'
+                  };
+
+                  const detectedLang = countryToLanguageMap[upperCode] || 'en';
+                  console.log(`🌍 Reset Page: Detected country ${upperCode} → language: ${detectedLang}`);
+                  setLanguageCode(detectedLang);
+                  return;
+                }
+              }
+            } catch (error) {
+              continue;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to detect location for reset page');
+        }
+
+        const browserLang = navigator.language.split('-')[0] || 'en';
+        console.log(`🗣️ Reset Page: Using browser language: ${browserLang}`);
+        setLanguageCode(browserLang);
+      }
+    };
+
+    detectLanguageForResetPage();
+  }, [])
 
   // Check if we have valid reset token
   useEffect(() => {

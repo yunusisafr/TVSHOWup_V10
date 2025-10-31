@@ -195,6 +195,7 @@ const AdManagement: React.FC = () => {
         onClose={() => setShowModal(false)}
         onSave={loadAdUnits}
         adUnit={selectedAdUnit}
+        userId={user?.id || ''}
       />
 
       <ConfirmDialog
