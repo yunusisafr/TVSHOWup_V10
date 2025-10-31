@@ -21,7 +21,7 @@ A modern, multi-language streaming content discovery platform that helps users f
 - **Provider Tracking**: Integration with 100+ streaming platforms worldwide
 - **Country-Specific Availability**: Shows which platforms stream content in user's region
 - **Network Information**: Display original broadcast networks for TV shows
-- **Turkish Platform Support**: Special support for Turkish streaming services (GAİN, BluTV, etc.)
+- **Turkish Platform Support**: Special support for Turkish streaming services (GAİN, EXXEN etc.)
 
 ### User Features
 - **Personal Watchlists**: Create and manage multiple custom watchlists
@@ -123,8 +123,8 @@ A modern, multi-language streaming content discovery platform that helps users f
 ### Multi-Language System
 The application uses a sophisticated multi-language architecture:
 
-1. **Country Code**: Determines streaming provider availability (TR, US, DE, etc.)
-2. **Language Code**: Controls UI and content translation (tr, en, de, etc.)
+1. **Country Code**: Determines streaming provider availability (US, DE, FR, ES, IT, AR, CH etc.)
+2. **Language Code**: Controls UI and content translation (en, de, fr, tr etc.)
 3. **Translation Storage**: All translations stored in JSONB columns in the database
 4. **Slug System**: Single canonical slug per content based on original title
 5. **No Runtime API Calls**: All translations pre-fetched and stored in database
