@@ -23,6 +23,21 @@ const ResetPasswordPage: React.FC = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
+  // Debug: log tipi
+  useEffect(() => {
+    try {
+      console.log('ResetPasswordPage mount — typeof t:', typeof t)
+      console.log('session:', session)
+      console.log('supabase.auth exists:', !!(supabase && (supabase as any).auth))
+      if (supabase && (supabase as any).auth) {
+        console.log('supabase.auth.updateUser type:', typeof (supabase as any).auth.updateUser)
+        console.log('supabase.auth.update type:', typeof (supabase as any).auth.update)
+      }
+    } catch (err) {
+      console.error('Debug log error:', err)
+    }
+  }, [t, session])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -40,11 +55,45 @@ const ResetPasswordPage: React.FC = () => {
     setError('')
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      })
+      // Debug: indicate start of update attempt
+      console.log('Attempting to update password via Supabase auth...')
 
-      if (error) throw error
+      // Prefer updateUser if present (some code/examples use updateUser), but fallback to update
+      const authObj: any = (supabase as any)?.auth ?? null
+
+      if (!authObj) {
+        throw new Error('Supabase auth client not available')
+      }
+
+      let res: any = null
+
+      if (typeof authObj.updateUser === 'function') {
+        // Commonly used in some examples
+        res = await authObj.updateUser({ password })
+        console.log('Called supabase.auth.updateUser result:', res)
+      } else if (typeof authObj.update === 'function') {
+        // Supabase v2 may use auth.update or other method names depending on wrapper
+        res = await authObj.update({ password })
+        console.log('Called supabase.auth.update result:', res)
+      } else if (typeof authObj['updateUserPassword'] === 'function') {
+        // unlikely but added as extra safety
+        res = await authObj.updateUserPassword({ password })
+        console.log('Called supabase.auth.updateUserPassword result:', res)
+      } else {
+        throw new Error('No supported supabase.auth update function found')
+      }
+
+      // Normalize response: many supabase responses use { data, error } or { error }
+      const possibleError = res?.error ?? (res?.data?.error ?? null) ?? null
+
+      if (possibleError) {
+        // If it's an Error object or Supabase error-like object
+        const message = possibleError?.message ?? JSON.stringify(possibleError)
+        throw new Error(message)
+      }
+
+      // Sometimes response indicates success in data
+      console.log('Password update response successful:', res)
 
       setSuccess(true)
 
@@ -52,13 +101,14 @@ const ResetPasswordPage: React.FC = () => {
         const loginPath = buildLanguagePath('/login', languageCode || 'en')
         navigate(loginPath, {
           state: {
-            message: t('password_updated_success')
+            message: (typeof t === 'function' ? t('password_updated_success') : 'Password updated successfully')
           }
         })
       }, 3000)
 
-    } catch (error: any) {
-      setError(error.message || t('error_updating_password'))
+    } catch (err: any) {
+      console.error('Reset password error (raw):', err)
+      setError(err?.message || (typeof t === 'function' ? t('error_updating_password') : 'Error updating password'))
     } finally {
       setLoading(false)
     }
@@ -77,14 +127,14 @@ const ResetPasswordPage: React.FC = () => {
               />
             </Link>
             <h2 className="text-center text-3xl font-extrabold text-white">
-              {t('password_updated_title')}
+              {typeof t === 'function' ? t('password_updated_title') : 'Password updated'}
             </h2>
           </div>
 
           <div className="bg-green-900/20 border border-green-500 rounded-lg p-4 flex items-center">
             <Check className="w-5 h-5 text-green-500 mr-2" />
             <p className="text-green-400">
-              {t('password_updated_redirecting')}
+              {typeof t === 'function' ? t('password_updated_redirecting') : 'Redirecting...'}
             </p>
           </div>
         </div>
@@ -112,7 +162,7 @@ const ResetPasswordPage: React.FC = () => {
           <button
             onClick={() => navigate(-1)}
             className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
-            aria-label={t('close')}
+            aria-label={typeof t === 'function' ? t('close') : 'Close'}
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,10 +177,10 @@ const ResetPasswordPage: React.FC = () => {
             />
           </Link>
           <h2 className="text-center text-3xl font-extrabold text-white">
-            {t('set_new_password')}
+            {typeof t === 'function' ? t('set_new_password') : 'Set new password'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
-            {t('set_new_password_description')}
+            {typeof t === 'function' ? t('set_new_password_description') : 'Set a new password for your account.'}
           </p>
         </div>
 
@@ -138,7 +188,7 @@ const ResetPasswordPage: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                {t('new_password')}
+                {typeof t === 'function' ? t('new_password') : 'New password'}
               </label>
               <div className="mt-1 relative">
                 <input
@@ -150,7 +200,7 @@ const ResetPasswordPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-700 placeholder-gray-500 text-white bg-gray-800 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                  placeholder={t('enter_new_password')}
+                  placeholder={typeof t === 'function' ? t('enter_new_password') : 'Enter new password'}
                 />
                 <button
                   type="button"
@@ -168,7 +218,7 @@ const ResetPasswordPage: React.FC = () => {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
-                {t('confirm_new_password')}
+                {typeof t === 'function' ? t('confirm_new_password') : 'Confirm new password'}
               </label>
               <div className="mt-1 relative">
                 <input
@@ -180,7 +230,7 @@ const ResetPasswordPage: React.FC = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-700 placeholder-gray-500 text-white bg-gray-800 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                  placeholder={t('confirm_new_password_placeholder')}
+                  placeholder={typeof t === 'function' ? t('confirm_new_password_placeholder') : 'Confirm new password'}
                 />
                 <button
                   type="button"
@@ -212,10 +262,10 @@ const ResetPasswordPage: React.FC = () => {
               {loading ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  {t('updating')}
+                  {typeof t === 'function' ? t('updating') : 'Updating'}
                 </div>
               ) : (
-                t('update_password')
+                (typeof t === 'function' ? t('update_password') : 'Update password')
               )}
             </button>
           </div>
