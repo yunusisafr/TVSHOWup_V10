@@ -207,7 +207,12 @@ class AIChatService {
           },
           body: JSON.stringify({
             query,
-            conversationHistory: conversationHistory.slice(-5),
+            conversationHistory: conversationHistory.slice(-10).map(msg => ({
+              role: msg.role,
+              content: msg.content,
+              extractedParams: msg.extractedParams,
+              resultsCount: msg.resultsCount
+            })),
             countryCode: countryCode.toUpperCase(),
           }),
         }

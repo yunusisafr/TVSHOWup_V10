@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getBrowserFingerprint } from './browserFingerprint';
 
 export interface UsageLimits {
   dailyLimit: number;
@@ -59,13 +60,15 @@ export const rateLimitService = {
     try {
       const isAuthenticated = !!userId;
       const sessionId = isAuthenticated ? null : getSessionId();
+      const browserFingerprint = await getBrowserFingerprint();
       const baseLimit = getBaseDailyLimit(isAdmin, isAuthenticated);
 
-      console.log('🔍 Fetching user limits:', { userId, sessionId, isAdmin });
+      console.log('🔍 Fetching user limits:', { userId, sessionId, fingerprint: browserFingerprint?.substring(0, 16), isAdmin });
 
       const { data, error } = await supabase.rpc('check_and_reset_ai_chat_limits', {
         p_user_id: userId,
         p_session_id: sessionId,
+        p_browser_fingerprint: browserFingerprint,
       });
 
       if (error) {
@@ -118,11 +121,13 @@ export const rateLimitService = {
     try {
       const isAuthenticated = !!userId;
       const sessionId = isAuthenticated ? null : getSessionId();
+      const browserFingerprint = await getBrowserFingerprint();
       const baseLimit = getBaseDailyLimit(isAdmin, isAuthenticated);
 
       const { error } = await supabase.from('ai_chat_usage_limits').insert({
         user_id: userId,
         session_id: sessionId,
+        browser_fingerprint: browserFingerprint,
         daily_limit: baseLimit,
         bonus_limit: 0,
         used_count: 0,
@@ -150,19 +155,14 @@ export const rateLimitService = {
     try {
       const isAuthenticated = !!userId;
       const sessionId = isAuthenticated ? null : getSessionId();
+      const browserFingerprint = await getBrowserFingerprint();
 
-      console.log('🔼 Incrementing usage for:', { userId, sessionId });
-
-      const limits = await this.getUserLimits(userId, isAdmin);
-      if (!limits) {
-        console.warn('⚠️ Could not get limits - this will be auto-created by RPC');
-      } else {
-        console.log('📊 Current limits before increment:', limits);
-      }
+      console.log('🔼 Incrementing usage for:', { userId, sessionId, fingerprint: browserFingerprint?.substring(0, 16) });
 
       const { data, error } = await supabase.rpc('increment_ai_chat_usage', {
         p_user_id: userId,
         p_session_id: sessionId,
+        p_browser_fingerprint: browserFingerprint,
       });
 
       if (error) {

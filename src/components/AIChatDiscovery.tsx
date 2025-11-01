@@ -286,12 +286,13 @@ const AIChatDiscovery: React.FC<AIChatDiscoveryProps> = ({ onClose }) => {
       createdAt: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
 
     try {
       await aiChatService.addMessage(conversationId, 'user', query);
 
-      const { content, responseText, isOffTopic, topicChanged, detectedMood, moodConfidence, isVagueQuery } = await aiChatService.processQuery(query, messages, countryCode);
+      const { content, responseText, isOffTopic, topicChanged, detectedMood, moodConfidence, isVagueQuery } = await aiChatService.processQuery(query, updatedMessages, countryCode);
 
       if (detectedMood && moodConfidence) {
         console.log(`🎭 User mood detected: ${detectedMood} (${moodConfidence}% confidence)`);
@@ -758,7 +759,7 @@ const AIChatDiscovery: React.FC<AIChatDiscoveryProps> = ({ onClose }) => {
                   </p>
                   <p className="text-xs text-amber-100/80">
                     {languageCode === 'tr'
-                      ? `Limitiniz ${rateLimitService.formatResetTime(usageLimits.resetAt, languageCode)} sonra sıfırlanacak.`
+                      ? `Limitiniz ${rateLimitService.formatResetTime(usageLimits.resetAt, languageCode)} sonra yenilenecek.`
                       : `Your limit will reset in ${rateLimitService.formatResetTime(usageLimits.resetAt, languageCode)}.`}
                   </p>
                   {!user && (
