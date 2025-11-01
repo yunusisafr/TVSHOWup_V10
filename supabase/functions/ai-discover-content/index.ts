@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { loadAllProviders } from './platform-loader.ts';
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -375,6 +377,19 @@ function detectTopicChange(currentQuery, history, currentParams) {
 async function generateFriendlyResponse(query, params, results, apiKey, languageCode, personInfo, contentInfo) {
   const resultCount = results.length;
   const contentType = params.contentType === "movie" ? "movies" : params.contentType === "tv" ? "shows" : "titles";
+
+  // Handle continuation queries
+  if (params.isContinuation && resultCount > 0) {
+    const continuationMessages = {
+      tr: `İşte ${resultCount} yeni öneri daha!`,
+      en: `Here are ${resultCount} more suggestions!`,
+      de: `Hier sind ${resultCount} weitere Vorschläge!`,
+      fr: `Voici ${resultCount} autres suggestions!`,
+      es: `¡Aquí hay ${resultCount} sugerencias más!`
+    };
+    return continuationMessages[languageCode] || continuationMessages.en;
+  }
+
   let contextInfo = "";
   if (personInfo) {
     const age = personInfo.birthday ? new Date().getFullYear() - new Date(personInfo.birthday).getFullYear() : null;
@@ -690,6 +705,9 @@ Match the emotional tone if mood detected (upbeat for happy, gentle for sad, ene
 }
 async function parseQueryWithGPT(query, conversationHistory, apiKey) {
   const currentYear = new Date().getFullYear();
+
+  const providersList = await loadAllProviders();
+
   const systemPrompt = `You are an expert at understanding movie/TV show requests and converting them to TMDB API parameters.
 
 🎭🎭🎭 ABSOLUTE HIGHEST PRIORITY: MOOD DETECTION 🎭🎭🎭
@@ -820,60 +838,64 @@ CONVERSATION CONTEXT:
 - You will receive conversation history - ALWAYS consider previous messages for context
 - Track mood across conversation - mood can change between messages
 
-STREAMING PROVIDERS (use provider IDs):
-- Netflix: 8
-- Amazon Prime: 9
-- Disney+: 337
-- HBO Max/Max: 1899
-- Hulu: 15
-- Apple TV+: 350
-- Paramount+: 531
-- Exxen: 1791
-- TOD: 1750
-- TOD TV: 1826
-
-TURKISH NETWORKS (use network IDs in withNetworks):
-- Exxen (network): 4405
-- Gain: 4409
-- Kanal D: 439
-- Show TV: 750
-- Star TV: 778
-- atv: 36
-
-PROVIDER NAME VARIATIONS:
-- "Apple TV", "Apple content", "Apple" → Apple TV+ (350)
-- "Max", "HBO Max", "HBO" → Max (1899)
-- "Prime", "Amazon Prime Video", "Amazon" → Amazon Prime (9)
-- "Disney Plus", "Disney", "Disney+" → Disney+ (337)
-- "Exxen" → Streaming: 1791, Network: 4405 (use both if mentioned)
-- "TOD", "tod", "Tod TV" → TOD (1750) or TOD TV (1826)
-
-TURKISH NETWORK NAME VARIATIONS:
-- "Gain", "Gain TV" → Gain (4409)
-- "Kanal D", "Kanal d", "kanald" → Kanal D (439)
-- "Show TV", "Show", "ShowTV" → Show TV (750)
-- "Star TV", "Star", "StarTV" → Star TV (778)
-- "atv", "ATV", "a tv" → atv (36)
+{{PROVIDERS_LIST}}
 
 🚨🚨🚨 CRITICAL PLATFORM/NETWORK RULES 🚨🚨🚨
 
-STREAMING PLATFORMS → Use "providers" array (Netflix, Prime, Disney+, HBO Max, Hulu, Apple TV+, Exxen, TOD):
-- "Netflix'te neler var", "Netflixte", "Netflix'te", "what's on Netflix" → contentType:"both", providers:[8], minRating:0
-- "Exxende neler var", "Exxen'de", "Exxende", "on Exxen" → contentType:"both", providers:[1791], minRating:0
-- "TOD'da neler var", "TOD'da", "TODda", "on TOD" → contentType:"both", providers:[1750], minRating:0
-- "Netflix filmler" → contentType:"movie", providers:[8], minRating:0
-- "Apple TV+ dizileri" → contentType:"tv", providers:[350], minRating:0
-- "Prime'da", "Primeda", "Amazon'da" → contentType:"both", providers:[9], minRating:0
-- "Disney+'da", "Disney'de", "Disneyde" → contentType:"both", providers:[337], minRating:0
+STREAMING PLATFORMS → Use "providers" array - Check STREAMING PLATFORMS list above for IDs
+TV NETWORKS/CHANNELS → Use "withNetworks" array - Check TV NETWORKS list above for IDs
 
-TV NETWORKS → Use "withNetworks" array (Gain, Kanal D, Show TV, Star TV, atv, Exxen):
-- "Gain'de neler var", "Gainde", "Gain'de", "what's on Gain" → contentType:"tv", withNetworks:[4409], minRating:0
-- "Gain ne sunuyor", "Gain'de ne izleyebilirim" → contentType:"tv", withNetworks:[4409], minRating:0
-- "Gain'de komedi dizileri", "Gainde komedi" → contentType:"tv", withNetworks:[4409], genres:[35], minRating:0
-- "Show TV'de", "Show TVde", "ShowTVde yayınlanan diziler" → contentType:"tv", withNetworks:[750], minRating:0
-- "Kanal D'de", "Kanal Dde", "Kanaldde ne var" → contentType:"tv", withNetworks:[439], minRating:0
-- "Star TV'de", "Star TVde", "StarTVde diziler" → contentType:"tv", withNetworks:[778], minRating:0
-- "atv'de", "atvde", "ATV'de neler var" → contentType:"tv", withNetworks:[36], minRating:0
+EXAMPLES:
+- "Netflix'te neler var", "Netflixte", "what's on Netflix" → Find Netflix ID from list, use providers:[ID]
+- "Gain'de neler var", "Gainde", "what's on Gain" → Find Gain ID from list, use withNetworks:[ID]
+- "Disney+'da filmler" → Find Disney+ ID from list, contentType:"movie", providers:[ID]
+- "Show TV'de diziler" → Find Show TV ID from list, contentType:"tv", withNetworks:[ID]
+
+IMPORTANT: ALWAYS search for the exact platform name in the lists above. Use fuzzy matching for variations.
+
+🚨 CRITICAL: CONVERSATION CONTEXT & FOLLOW-UP QUERIES 🚨
+
+When user asks follow-up questions like "başka?", "more?", "what else?", "andere?":
+1. CHECK conversation history - Look at PREVIOUS USER messages and ASSISTANT responses
+2. The LAST USER message contains the original search criteria (year, genre, country, platform, etc.)
+3. The ASSISTANT response shows how many results were found (resultsCount field)
+4. User wants MORE of the SAME TYPE but DIFFERENT content
+5. DO NOT change ANY criteria - copy ALL parameters from previous query
+6. Set "isContinuation": true to shuffle results
+
+FOLLOW-UP PATTERNS TO RECOGNIZE:
+TURKISH: "başka?", "başka var mı?", "daha var mı?", "başka ne var?", "başka öner", "daha", "diğerleri", "farklı", "yeni"
+ENGLISH: "more?", "what else?", "others?", "any more?", "more recommendations", "show me more", "different ones", "new ones"
+GERMAN: "mehr?", "noch mehr?", "andere?", "was noch?", "weitere?", "neue?"
+FRENCH: "d'autres?", "encore?", "plus?", "quoi d'autre?", "nouveaux?"
+SPANISH: "más?", "otros?", "qué más?", "otras opciones?", "diferentes?", "nuevos?"
+
+CRITICAL STEPS FOR FOLLOW-UP QUERIES:
+Step 1: Identify if this is a follow-up query (1-3 words like "başka?", "more?", "daha?")
+Step 2: Look at conversation history - find LAST user query (not the follow-up)
+Step 3: Find "extractedParams" field in conversation history
+Step 4: COPY ALL parameters from extractedParams: genres, year, country, providers, contentType, minRating, etc.
+Step 5: Set "isContinuation": true
+Step 6: Return EXACT SAME search parameters with isContinuation flag
+
+EXAMPLE CONVERSATION:
+User: "2025 yapımı 5 fransız film öner"
+Assistant: {extractedParams: {yearStart: 2025, yearEnd: 2025, productionCountries: ["FR"], contentType: "movie", maxResults: 5}, resultsCount: 5}
+User: "başka?"
+YOU MUST RESPOND: {yearStart: 2025, yearEnd: 2025, productionCountries: ["FR"], contentType: "movie", maxResults: 5, isContinuation: true}
+
+DO NOT:
+- Change year range
+- Change country
+- Change genre
+- Change platform
+- Change contentType
+- Interpret "başka?" as a new query
+
+DO:
+- Copy ALL parameters exactly
+- Set isContinuation: true
+- Keep maxResults the same
 
 🚨 CRITICAL: TURKISH GRAMMAR PATTERNS 🚨
 Turkish uses suffixes attached directly to platform names. ALWAYS recognize these:
@@ -1092,6 +1114,7 @@ Respond ONLY with JSON:
   "detectedMood": "sad" | "happy" | "bored" | "excited" | "tired" | "relaxed" | "stressed" | "romantic" | "nostalgic" | "angry" | null,
   "moodConfidence": number (0-100) or null,
   "isVagueQuery": boolean,
+  "isContinuation": boolean,
   "isSceneDetailQuery": boolean,
   "sceneDescription": string or null,
   "isPersonQuery": boolean,
@@ -1123,11 +1146,14 @@ Respond ONLY with JSON:
   "adultContent": boolean,
   "useTrendingAPI": boolean
 }`;
+
+  const finalSystemPrompt = systemPrompt.replace('{{PROVIDERS_LIST}}', providersList);
+
   try {
     const messages = [
       {
         role: "system",
-        content: systemPrompt
+        content: finalSystemPrompt
       }
     ];
     if (conversationHistory && conversationHistory.length > 0) {
@@ -1828,6 +1854,17 @@ async function searchTMDB(params, tmdbKey, countryCode, language = "en-US") {
       }
     }
   }
+
+  // If this is a continuation query, shuffle results to show different content
+  if (params.isContinuation && results.length > 0) {
+    console.log("🔄 Continuation detected - shuffling results for variety");
+    // Fisher-Yates shuffle algorithm
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
+  }
+
   if (params.maxResults && params.maxResults > 0) {
     return results.slice(0, params.maxResults);
   }
