@@ -9,6 +9,8 @@ import { useTranslation } from '../lib/i18n'
 import { Link } from 'react-router-dom'
 import { buildLanguagePath } from '../lib/utils'
 
+const isDev = import.meta.env.MODE === 'development'
+
 const ResetPasswordPage: React.FC = () => {
   const navigate = useNavigate()
   const { session } = useAuth()
@@ -23,8 +25,8 @@ const ResetPasswordPage: React.FC = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  // Debug: log tipi
   useEffect(() => {
+    if (!isDev) return
     try {
       console.log('ResetPasswordPage mount — typeof t:', typeof t)
       console.log('session:', session)
@@ -55,45 +57,27 @@ const ResetPasswordPage: React.FC = () => {
     setError('')
 
     try {
-      // Debug: indicate start of update attempt
-      console.log('Attempting to update password via Supabase auth...')
-
-      // Prefer updateUser if present (some code/examples use updateUser), but fallback to update
       const authObj: any = (supabase as any)?.auth ?? null
-
       if (!authObj) {
-        throw new Error('Supabase auth client not available')
+        throw new Error('Authentication client not available')
       }
 
-      let res: any = null
-
+      // Use the standard supabase v2 API: prefer updateUser, fall back to update if necessary
+      let res: any
       if (typeof authObj.updateUser === 'function') {
-        // Commonly used in some examples
         res = await authObj.updateUser({ password })
-        console.log('Called supabase.auth.updateUser result:', res)
-      } else if (typeof authObj.update === 'function') {
-        // Supabase v2 may use auth.update or other method names depending on wrapper
-        res = await authObj.update({ password })
-        console.log('Called supabase.auth.update result:', res)
-      } else if (typeof authObj['updateUserPassword'] === 'function') {
-        // unlikely but added as extra safety
-        res = await authObj.updateUserPassword({ password })
-        console.log('Called supabase.auth.updateUserPassword result:', res)
+        if (isDev) console.log('Called supabase.auth.updateUser result:', res)
       } else {
-        throw new Error('No supported supabase.auth update function found')
+        // Most v2 clients expose updateUser, but some wrappers might use update
+        res = await authObj.update({ password })
+        if (isDev) console.log('Called supabase.auth.update result:', res)
       }
 
-      // Normalize response: many supabase responses use { data, error } or { error }
-      const possibleError = res?.error ?? (res?.data?.error ?? null) ?? null
-
+      const possibleError = res?.error ?? null
       if (possibleError) {
-        // If it's an Error object or Supabase error-like object
         const message = possibleError?.message ?? JSON.stringify(possibleError)
         throw new Error(message)
       }
-
-      // Sometimes response indicates success in data
-      console.log('Password update response successful:', res)
 
       setSuccess(true)
 
@@ -101,13 +85,12 @@ const ResetPasswordPage: React.FC = () => {
         const loginPath = buildLanguagePath('/login', languageCode || 'en')
         navigate(loginPath, {
           state: {
-            message: (typeof t === 'function' ? t('password_updated_success') : 'Password updated successfully')
+            message: typeof t === 'function' ? t('password_updated_success') : 'Password updated successfully'
           }
         })
       }, 3000)
-
     } catch (err: any) {
-      console.error('Reset password error (raw):', err)
+      if (isDev) console.error('Reset password error (raw):', err)
       setError(err?.message || (typeof t === 'function' ? t('error_updating_password') : 'Error updating password'))
     } finally {
       setLoading(false)
@@ -120,11 +103,7 @@ const ResetPasswordPage: React.FC = () => {
         <div className="max-w-md w-full space-y-8">
           <div>
             <Link to={buildLanguagePath('/', languageCode || 'en')} className="flex items-center justify-center space-x-2 mb-8">
-              <img
-                src={getLogoUrl()}
-                alt="TVSHOWup"
-                className="h-11"
-              />
+              <img src={getLogoUrl()} alt="TVSHOWup" className="h-11" />
             </Link>
             <h2 className="text-center text-3xl font-extrabold text-white">
               {typeof t === 'function' ? t('password_updated_title') : 'Password updated'}
@@ -170,11 +149,7 @@ const ResetPasswordPage: React.FC = () => {
 
         <div>
           <Link to={buildLanguagePath('/', languageCode || 'en')} className="flex items-center justify-center space-x-2 mb-8">
-            <img
-              src={getLogoUrl()}
-              alt="TVSHOWup"
-              className="h-11"
-            />
+            <img src={getLogoUrl()} alt="TVSHOWup" className="h-11" />
           </Link>
           <h2 className="text-center text-3xl font-extrabold text-white">
             {typeof t === 'function' ? t('set_new_password') : 'Set new password'}
@@ -207,11 +182,7 @@ const ResetPasswordPage: React.FC = () => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
                 </button>
               </div>
             </div>
@@ -237,21 +208,13 @@ const ResetPasswordPage: React.FC = () => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
                 </button>
               </div>
             </div>
           </div>
 
-          {error && (
-            <div className="text-red-400 text-sm text-center">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-red-400 text-sm text-center">{error}</div>}
 
           <div>
             <button
