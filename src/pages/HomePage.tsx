@@ -668,12 +668,12 @@ const HomePage: React.FC = () => {
                      'TVSHOWup AI Discovery Assistant'}
                   </span>
                   <span className="sm:hidden">
-                    {languageCode === 'tr' ? 'TVSHOWup AI Keşif' :
-                     languageCode === 'de' ? 'TVSHOWup KI-Entdeckung' :
-                     languageCode === 'fr' ? 'Découverte IA TVSHOWup' :
-                     languageCode === 'es' ? 'Descubrimiento IA TVSHOWup' :
-                     languageCode === 'it' ? 'Scoperta IA TVSHOWup' :
-                     languageCode === 'ar' ? 'مساعد TVSHOWup AI' :
+                    {languageCode === 'tr' ? 'AI Keşif' :
+                     languageCode === 'de' ? 'KI-Entdeckung' :
+                     languageCode === 'fr' ? 'Découverte IA' :
+                     languageCode === 'es' ? 'Descubrimiento IA' :
+                     languageCode === 'it' ? 'Scoperta IA' :
+                     languageCode === 'ar' ? 'مساعد AI' :
                      'TVSHOWup AI Discovery'}
                   </span>
                 </h2>
