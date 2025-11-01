@@ -6,6 +6,7 @@ import { AdminProvider } from './contexts/AdminContext';
 import { AuthPromptProvider } from './contexts/AuthPromptContext';
 import { UserPreferencesProvider } from './contexts/UserPreferencesContext';
 import { isAdminRoute, getLanguageFromPath, isRTLLanguage, detectBrowserLanguage } from './lib/utils';
+import { loadGoogleAdScripts } from './lib/adScriptLoader';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -238,6 +239,10 @@ function RTLWrapper({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', lang || 'en');
   }, [location.pathname]);
+
+  useEffect(() => {
+    loadGoogleAdScripts();
+  }, []);
 
   return <>{children}</>;
 }

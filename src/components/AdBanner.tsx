@@ -14,6 +14,10 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
     const loadAds = async () => {
       await loadAdUnits();
       const ads = getAdsByPosition(position);
+      console.log(`📢 AdBanner for position "${position}":`, ads.length > 0 ? `Found ${ads.length} ad(s)` : 'No ads found');
+      if (ads.length > 0) {
+        console.log('Ad unit details:', ads);
+      }
       setAdUnits(ads);
       setIsLoading(false);
     };
@@ -35,9 +39,17 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
     }
   }, [adUnits, isLoading]);
 
-  if (isLoading || adUnits.length === 0) {
+  if (isLoading) {
+    console.log(`⏳ AdBanner loading for position "${position}"...`);
     return null;
   }
+
+  if (adUnits.length === 0) {
+    console.log(`❌ AdBanner: No ads to display for position "${position}"`);
+    return null;
+  }
+
+  console.log(`✅ Rendering ${adUnits.length} ad(s) for position "${position}"`);
 
   return (
     <div className={`ad-banner-container ${className}`}>

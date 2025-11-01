@@ -107,7 +107,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
   // Update image URL when language or content changes
   useEffect(() => {
-    const newImageUrl = tmdbService.getImageUrl(content.poster_path || '', 'w342', content, languageCode, true)
+    const newImageUrl = tmdbService.getImageUrl(content.poster_path || '', 'w342', content, languageCode)
     setImageUrl(newImageUrl)
   }, [content, languageCode, content.poster_path])
 
@@ -115,8 +115,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
   useEffect(() => {
     const handlePreferencesChanged = (event: any) => {
       if (event.detail.countryChanged || event.detail.languageChanged) {
-        console.log('🖼️ Country/Language changed, keeping original poster for content:', content.id)
-        const newImageUrl = tmdbService.getImageUrl(content.poster_path || '', 'w342', content, languageCode, true)
+        console.log('🖼️ Language changed, updating poster for content:', content.id)
+        const newImageUrl = tmdbService.getImageUrl(content.poster_path || '', 'w342', content, languageCode)
         setImageUrl(newImageUrl)
       }
     }

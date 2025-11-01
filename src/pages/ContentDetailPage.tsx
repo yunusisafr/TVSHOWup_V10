@@ -1258,10 +1258,13 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({ contentType }) =>
               {/* Poster */}
               <div className="flex-shrink-0 self-start">
                 <img
-                  src={content.poster_path 
-                    ? tmdbService.getImageUrl(content.poster_path, 'w342')
-                    : '/placeholder-poster.jpg'
-                  }
+                  src={tmdbService.getLanguageAwarePosterUrl(
+                    content.poster_paths_by_language,
+                    content.original_language,
+                    activeLanguage,
+                    content.poster_path,
+                    'w342'
+                  )}
                   alt={content.title}
                   className="w-24 h-36 xs:w-32 xs:h-48 sm:w-48 sm:h-auto object-cover rounded-lg shadow-xl"
                   onError={(e) => {
