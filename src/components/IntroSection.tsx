@@ -46,17 +46,8 @@ const IntroSection: React.FC = () => {
                languageCode === 'it' ? 'Scoperta di Contenuti Potenziata dall\'IA e Watchlist Intelligenti' :
                'AI-Powered Content Discovery and Smart Watchlists'}
             </h1>
-            
-            <p className="text-gray-300 text-sm sm:text-base">
-              {languageCode === 'tr' ? 'Yapay zeka ile kişiselleştirilmiş içerik önerileri alın, tüm streaming platformlarında dizi ve filmleri keşfedin, izleme durumunuzu takip edin ve listenizi arkadaşlarınızla paylaşın.' :
-               languageCode === 'de' ? 'Erhalten Sie personalisierte Inhaltsempfehlungen mit KI, entdecken Sie Serien und Filme auf allen Streaming-Plattformen, verfolgen Sie Ihren Fortschritt und teilen Sie Ihre Listen mit Freunden.' :
-               languageCode === 'fr' ? 'Obtenez des recommandations de contenu personnalisées avec l\'IA, découvrez des séries et films sur toutes les plateformes de streaming, suivez votre progression et partagez vos listes avec vos amis.' :
-               languageCode === 'es' ? 'Obtén recomendaciones de contenido personalizadas con IA, descubre series y películas en todas las plataformas de streaming, rastrea tu progreso y comparte tus listas con amigos.' :
-               languageCode === 'it' ? 'Ottieni raccomandazioni di contenuti personalizzate con l\'IA, scopri serie e film su tutte le piattaforme di streaming, monitora i tuoi progressi e condividi le tue liste con gli amici.' :
-               'Get personalized content recommendations with AI, discover shows and movies across all streaming platforms, track your progress, and share your lists with friends.'}
-            </p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
                   <Sparkles className="h-5 w-5 text-blue-400" />

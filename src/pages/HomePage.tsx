@@ -659,12 +659,12 @@ const HomePage: React.FC = () => {
               <div className="min-w-0 flex-1 text-left">
                 <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white leading-tight mb-1">
                   <span className="hidden sm:inline">
-                    {languageCode === 'tr' ? 'TVSHOWup AI Keşif Asistanı' :
-                     languageCode === 'de' ? 'TVSHOWup KI-Entdeckungsassistent' :
-                     languageCode === 'fr' ? 'Assistant de Découverte IA TVSHOWup' :
-                     languageCode === 'es' ? 'Asistente de Descubrimiento IA TVSHOWup' :
-                     languageCode === 'it' ? 'Assistente di Scoperta IA TVSHOWup' :
-                     languageCode === 'ar' ? 'مساعد اكتشاف TVSHOWup AI' :
+                    {languageCode === 'tr' ? 'AI Keşif Asistanı' :
+                     languageCode === 'de' ? 'KI-Entdeckungsassistent' :
+                     languageCode === 'fr' ? 'Assistant de Découverte IA' :
+                     languageCode === 'es' ? 'Asistente de Descubrimiento IA' :
+                     languageCode === 'it' ? 'Assistente di Scoperta IA' :
+                     languageCode === 'ar' ? 'مساعد اكتشاف AI' :
                      'TVSHOWup AI Discovery Assistant'}
                   </span>
                   <span className="sm:hidden">

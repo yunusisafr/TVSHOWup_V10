@@ -507,12 +507,9 @@ const AIChatDiscovery: React.FC<AIChatDiscoveryProps> = ({ onClose }) => {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-xs sm:text-base md:text-lg font-bold text-white leading-tight">
-              <span className="hidden sm:inline">{languageCode === 'tr' ? 'TVSHOWup Keşif Asistanı' : 'TVSHOWup Discovery Assistant'}</span>
-              <span className="sm:hidden leading-tight break-words">{languageCode === 'tr' ? 'TVSHOWup Keşif Asistanı' : 'TVSHOWup Discovery'}</span>
+              <span className="hidden sm:inline">{languageCode === 'tr' ? 'Keşif Asistanı' : languageCode === 'de' ? 'Discovery-Assistent' : languageCode === 'fr' ? 'Assistant de Découverte' : languageCode === 'es' ? 'Asistente de Descubrimiento' : languageCode === 'ar' ? 'مساعد الاكتشاف' : 'Discovery Assistant'}</span>
+              <span className="sm:hidden leading-tight break-words">{languageCode === 'tr' ? 'Keşif Asistanı' : languageCode === 'de' ? 'Discovery' : languageCode === 'fr' ? 'Découverte' : languageCode === 'es' ? 'Descubrimiento' : languageCode === 'ar' ? 'الاكتشاف' : 'Discovery'}</span>
             </h2>
-            <p className="text-xs text-gray-300 hidden sm:block">
-              {languageCode === 'tr' ? 'Mükemmel içeriği bulmak için konuşun' : 'Chat to find perfect content'}
-            </p>
           </div>
         </div>
         <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">

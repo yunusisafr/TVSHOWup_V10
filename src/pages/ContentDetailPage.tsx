@@ -954,7 +954,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({ contentType }) =>
       ? (languageCode === 'tr' ? 'Film' : 'Movie')
       : (languageCode === 'tr' ? 'Dizi' : 'TV Show')
     
-    document.title = `${contentTitle} (${releaseYear}) - ${contentTypeText} | TVSHOWup`
+    document.title = `${contentTitle} (${releaseYear}) - ${contentTypeText} | tvshowup`
     
     // Update meta description
     const metaDescription = document.querySelector('meta[name="description"]')
@@ -983,8 +983,8 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({ contentType }) =>
       
       // Always add value proposition at the end
       const valueProp = languageCode === 'tr'
-        ? ' İzleme listenize ekleyin ve hangi platformda yayında olduğunu görün - TVSHOWup'
-        : ' Add to your watchlist & find out where to stream it on TVSHOWup.'
+        ? ' İzleme listenize ekleyin ve hangi platformda yayında olduğunu görün - tvshowup'
+        : ' Add to your watchlist & find out where to stream it on tvshowup.'
       
       description += valueProp
       
@@ -1034,7 +1034,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({ contentType }) =>
       : (languageCode === 'tr' ? 'Dizi' : 'TV Show')
 
     schemas.push(StructuredDataGenerator.generateBreadcrumbSchema([
-      { name: 'TVSHOWup', url: `${window.location.origin}/${languageCode}` },
+      { name: 'tvshowup', url: `${window.location.origin}/${languageCode}` },
       { name: contentTypeText, url: `${window.location.origin}/${languageCode}/search` },
       { name: content.title, url: window.location.href }
     ]))
@@ -1069,7 +1069,7 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({ contentType }) =>
       ogDescription.setAttribute('property', 'og:description')
       document.head.appendChild(ogDescription)
     }
-    const description = content.overview || content.tagline || `${contentTitle} ${contentTypeText.toLowerCase()} details on TVSHOWup`
+    const description = content.overview || content.tagline || `${contentTitle} ${contentTypeText.toLowerCase()} details on tvshowup`
     ogDescription.setAttribute('content', description.length > 155 ? description.substring(0, 152) + '...' : description)
 
     // Update or create Open Graph image
@@ -1140,11 +1140,11 @@ const ContentDetailPage: React.FC<ContentDetailPageProps> = ({ contentType }) =>
   
   const resetMetaData = () => {
     // Reset to default title and description when leaving the page
-    document.title = 'TVSHOWup - Find Your Next Show'
+    document.title = 'tvshowup - Find Your Next Show'
     
     const metaDescription = document.querySelector('meta[name="description"]')
     if (metaDescription) {
-      metaDescription.setAttribute('content', 'The World\'s Most Practical and Enjoyable Watchlist is on TVSHOWup. And it\'s free! Discover TV shows and movies on all streaming platforms. Create lists, update your viewing status, and share them with friends.')
+      metaDescription.setAttribute('content', 'The World\'s Most Practical and Enjoyable Watchlist is on tvshowup. And it\'s free! Discover TV shows and movies on all streaming platforms. Create lists, update your viewing status, and share them with friends.')
     }
   }
 

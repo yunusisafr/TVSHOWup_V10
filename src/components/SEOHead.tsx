@@ -10,8 +10,8 @@ interface SEOHeadProps {
 }
 
 const SEOHead: React.FC<SEOHeadProps> = ({
-  title = 'TVSHOWup - Find Your Next Show',
-  description = "The World's Most Practical and Enjoyable Watchlist is on TVSHOWup. And it's free! Discover TV shows and movies on all streaming platforms.",
+  title = 'tvshowup - Find Your Next Show',
+  description = "The World's Most Practical and Enjoyable Watchlist is on tvshowup. And it's free! Discover TV shows and movies on all streaming platforms.",
   image,
   languageCode
 }) => {
