@@ -96,12 +96,14 @@ Deno.serve(async (req) => {
 
     let TMDB_API_KEY = Deno.env.get('TMDB_API_KEY')
     let requestBody: any = {}
-    
-    if (!TMDB_API_KEY && req.method === 'POST') {
+
+    if (req.method === 'POST') {
       try {
         requestBody = await req.json()
-        TMDB_API_KEY = requestBody.tmdbApiKey
-        
+        if (requestBody.tmdbApiKey) {
+          TMDB_API_KEY = requestBody.tmdbApiKey
+        }
+
         if (requestBody.action === 'save-content') {
           const { contentId, contentType, languageCode, countryCode, tmdbApiKey } = requestBody
           
@@ -121,13 +123,16 @@ Deno.serve(async (req) => {
 
           const details = await detailsResponse.json()
 
-          const supportedLanguages = ['en', 'tr', 'de', 'fr', 'es', 'it']
+          console.log(`📝 Content original language: ${details.original_language}`)
+
+          const supportedLanguages = ['en', 'tr', 'de', 'fr', 'es', 'it', 'ar', 'ja', 'ko', 'pt', 'ru', 'zh']
           const translations = {
             title: {},
             name: {},
             overview: {},
             tagline: {}
           }
+          const postersByLanguage = {}
 
           for (const lang of supportedLanguages) {
             try {
@@ -154,16 +159,50 @@ Deno.serve(async (req) => {
           }
 
           console.log(`✅ Fetched translations for ${supportedLanguages.length} languages`)
-          
+
+          try {
+            console.log(`🖼️ Fetching posters by language from TMDB images API...`)
+            const imagesUrl = `https://api.themoviedb.org/3/${tmdbType}/${contentId}/images?api_key=${tmdbApiKey}`
+            const imagesResponse = await fetchWithRetry(imagesUrl)
+
+            if (imagesResponse.ok) {
+              const imagesData = await imagesResponse.json()
+
+              if (imagesData.posters && imagesData.posters.length > 0) {
+                imagesData.posters.forEach((poster: any) => {
+                  if (poster.iso_639_1) {
+                    if (!postersByLanguage[poster.iso_639_1]) {
+                      postersByLanguage[poster.iso_639_1] = poster.file_path
+                      console.log(`  ✓ Found poster for language: ${poster.iso_639_1}`)
+                    }
+                  }
+                })
+                console.log(`✅ Collected posters for ${Object.keys(postersByLanguage).length} languages`)
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to fetch poster images:`, error)
+          }
+
           if (contentType === 'movie') {
+            const originalLang = details.original_language
+            const originalTitle = translations.title[originalLang] || details.original_title || details.title
+            const originalOverview = translations.overview[originalLang] || details.overview
+            const originalTagline = translations.tagline[originalLang] || details.tagline
+            const originalPoster = postersByLanguage[originalLang] || details.poster_path
+
+            console.log(`📌 Using original language data: ${originalLang}`)
+            console.log(`   Title: ${originalTitle}`)
+            console.log(`   Poster: ${originalPoster}`)
+
             const movieData = {
               id: details.id,
-              title: details.title,
+              title: originalTitle,
               original_title: details.original_title,
-              overview: details.overview,
+              overview: originalOverview || '',
               release_date: details.release_date || null,
               runtime: details.runtime || null,
-              poster_path: details.poster_path,
+              poster_path: originalPoster,
               backdrop_path: details.backdrop_path,
               vote_average: details.vote_average || 0,
               vote_count: details.vote_count || 0,
@@ -174,7 +213,7 @@ Deno.serve(async (req) => {
               budget: details.budget || 0,
               revenue: details.revenue || 0,
               status: details.status,
-              tagline: details.tagline,
+              tagline: originalTagline || '',
               homepage: details.homepage,
               imdb_id: details.imdb_id,
               belongs_to_collection: details.belongs_to_collection ? JSON.stringify(details.belongs_to_collection) : null,
@@ -188,6 +227,7 @@ Deno.serve(async (req) => {
               title_translations: JSON.stringify(translations.title),
               overview_translations: JSON.stringify(translations.overview),
               tagline_translations: JSON.stringify(translations.tagline),
+              poster_paths_by_language: JSON.stringify(postersByLanguage),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }
@@ -203,14 +243,24 @@ Deno.serve(async (req) => {
             await syncStreamingProviders(supabaseClient, contentId, 'movie', tmdbApiKey, countries)
 
           } else if (contentType === 'tv_show') {
+            const originalLang = details.original_language
+            const originalName = translations.name[originalLang] || details.original_name || details.name
+            const originalOverview = translations.overview[originalLang] || details.overview
+            const originalTagline = translations.tagline[originalLang] || details.tagline
+            const originalPoster = postersByLanguage[originalLang] || details.poster_path
+
+            console.log(`📌 Using original language data: ${originalLang}`)
+            console.log(`   Name: ${originalName}`)
+            console.log(`   Poster: ${originalPoster}`)
+
             const tvData = {
               id: details.id,
-              name: details.name,
+              name: originalName,
               original_name: details.original_name,
-              overview: details.overview,
+              overview: originalOverview || '',
               first_air_date: details.first_air_date || null,
               last_air_date: details.last_air_date || null,
-              poster_path: details.poster_path,
+              poster_path: originalPoster,
               backdrop_path: details.backdrop_path,
               vote_average: details.vote_average || 0,
               vote_count: details.vote_count || 0,
@@ -219,7 +269,7 @@ Deno.serve(async (req) => {
               original_language: details.original_language,
               status: details.status,
               type: details.type,
-              tagline: details.tagline,
+              tagline: originalTagline || '',
               homepage: details.homepage,
               in_production: details.in_production || false,
               number_of_episodes: details.number_of_episodes || 0,
@@ -242,10 +292,11 @@ Deno.serve(async (req) => {
               name_translations: JSON.stringify(translations.name),
               overview_translations: JSON.stringify(translations.overview),
               tagline_translations: JSON.stringify(translations.tagline),
+              poster_paths_by_language: JSON.stringify(postersByLanguage),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }
-            
+
             const { error } = await supabaseClient
               .from('tv_shows')
               .upsert(tvData)
@@ -353,13 +404,16 @@ Deno.serve(async (req) => {
 
         const details = await detailsResponse.json()
 
-        const supportedLanguages = ['en', 'tr', 'de', 'fr', 'es', 'it']
+        console.log(`📝 Content original language: ${details.original_language}`)
+
+        const supportedLanguages = ['en', 'tr', 'de', 'fr', 'es', 'it', 'ar', 'ja', 'ko', 'pt', 'ru', 'zh']
         const translations = {
           title: {},
           name: {},
           overview: {},
           tagline: {}
         }
+        const postersByLanguage = {}
 
         for (const lang of supportedLanguages) {
           try {
@@ -387,15 +441,49 @@ Deno.serve(async (req) => {
 
         console.log(`✅ Fetched translations for ${supportedLanguages.length} languages`)
 
+        try {
+          console.log(`🖼️ Fetching posters by language from TMDB images API...`)
+          const imagesUrl = `https://api.themoviedb.org/3/${tmdbType}/${contentId}/images?api_key=${TMDB_API_KEY}`
+          const imagesResponse = await fetchWithRetry(imagesUrl)
+
+          if (imagesResponse.ok) {
+            const imagesData = await imagesResponse.json()
+
+            if (imagesData.posters && imagesData.posters.length > 0) {
+              imagesData.posters.forEach((poster: any) => {
+                if (poster.iso_639_1) {
+                  if (!postersByLanguage[poster.iso_639_1]) {
+                    postersByLanguage[poster.iso_639_1] = poster.file_path
+                    console.log(`  ✓ Found poster for language: ${poster.iso_639_1}`)
+                  }
+                }
+              })
+              console.log(`✅ Collected posters for ${Object.keys(postersByLanguage).length} languages`)
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch poster images:`, error)
+        }
+
         if (contentType === 'movie') {
+          const originalLang = details.original_language
+          const originalTitle = translations.title[originalLang] || details.original_title || details.title
+          const originalOverview = translations.overview[originalLang] || details.overview
+          const originalTagline = translations.tagline[originalLang] || details.tagline
+          const originalPoster = postersByLanguage[originalLang] || details.poster_path
+
+          console.log(`📌 Using original language data: ${originalLang}`)
+          console.log(`   Title: ${originalTitle}`)
+          console.log(`   Poster: ${originalPoster}`)
+
           const movieData = {
             id: details.id,
-            title: details.title,
+            title: originalTitle,
             original_title: details.original_title,
-            overview: details.overview,
+            overview: originalOverview || '',
             release_date: details.release_date || null,
             runtime: details.runtime || null,
-            poster_path: details.poster_path,
+            poster_path: originalPoster,
             backdrop_path: details.backdrop_path,
             vote_average: details.vote_average || 0,
             vote_count: details.vote_count || 0,
@@ -406,7 +494,7 @@ Deno.serve(async (req) => {
             budget: details.budget || 0,
             revenue: details.revenue || 0,
             status: details.status,
-            tagline: details.tagline,
+            tagline: originalTagline || '',
             homepage: details.homepage,
             imdb_id: details.imdb_id,
             belongs_to_collection: details.belongs_to_collection ? JSON.stringify(details.belongs_to_collection) : null,
@@ -420,6 +508,7 @@ Deno.serve(async (req) => {
             title_translations: JSON.stringify(translations.title),
             overview_translations: JSON.stringify(translations.overview),
             tagline_translations: JSON.stringify(translations.tagline),
+            poster_paths_by_language: JSON.stringify(postersByLanguage),
             updated_at: new Date().toISOString()
           }
 
@@ -434,14 +523,24 @@ Deno.serve(async (req) => {
           await syncStreamingProviders(supabaseClient, contentId, 'movie', TMDB_API_KEY, countries)
 
         } else if (contentType === 'tv_show') {
+          const originalLang = details.original_language
+          const originalName = translations.name[originalLang] || details.original_name || details.name
+          const originalOverview = translations.overview[originalLang] || details.overview
+          const originalTagline = translations.tagline[originalLang] || details.tagline
+          const originalPoster = postersByLanguage[originalLang] || details.poster_path
+
+          console.log(`📌 Using original language data: ${originalLang}`)
+          console.log(`   Name: ${originalName}`)
+          console.log(`   Poster: ${originalPoster}`)
+
           const tvData = {
             id: details.id,
-            name: details.name,
+            name: originalName,
             original_name: details.original_name,
-            overview: details.overview,
+            overview: originalOverview || '',
             first_air_date: details.first_air_date || null,
             last_air_date: details.last_air_date || null,
-            poster_path: details.poster_path,
+            poster_path: originalPoster,
             backdrop_path: details.backdrop_path,
             vote_average: details.vote_average || 0,
             vote_count: details.vote_count || 0,
@@ -450,7 +549,7 @@ Deno.serve(async (req) => {
             original_language: details.original_language,
             status: details.status,
             type: details.type,
-            tagline: details.tagline,
+            tagline: originalTagline || '',
             homepage: details.homepage,
             in_production: details.in_production || false,
             number_of_episodes: details.number_of_episodes || 0,
@@ -473,6 +572,7 @@ Deno.serve(async (req) => {
             name_translations: JSON.stringify(translations.name),
             overview_translations: JSON.stringify(translations.overview),
             tagline_translations: JSON.stringify(translations.tagline),
+            poster_paths_by_language: JSON.stringify(postersByLanguage),
             updated_at: new Date().toISOString()
           }
 
