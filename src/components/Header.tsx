@@ -196,7 +196,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch = () => {} }) => {
               <img
                 src={getLogoUrl()}
                 alt="TVSHOWup"
-                className="h-11"
+                className="h-8 md:h-11"
                 loading="eager"
               />
             </LanguageLink>
