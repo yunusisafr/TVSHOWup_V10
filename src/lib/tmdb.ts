@@ -540,53 +540,19 @@ class TMDBService {
   }
 
   // Get image URL
-  getImageUrl(path: string, size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'w500', content?: any, languageCode?: string, useOriginalPoster: boolean = true) {
+  getImageUrl(path: string, size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'w500', content?: any, languageCode?: string, useOriginalPoster: boolean = false) {
     if (!path) return '/placeholder-poster.jpg'
-    
-    // Always use original poster if requested (default behavior)
-    if (useOriginalPoster) {
-      return `${TMDB_IMAGE_BASE_URL}/${size}${path}`
-    }
-    
-    // If content and languageCode are provided, try to get language-specific poster
+
     if (content && languageCode && content.poster_paths_by_language) {
-      try {
-        const postersByLanguage = typeof content.poster_paths_by_language === 'string' 
-          ? JSON.parse(content.poster_paths_by_language)
-          : content.poster_paths_by_language
-        
-        // Priority 1: User's current language
-        if (postersByLanguage[languageCode]) {
-          return `${TMDB_IMAGE_BASE_URL}/${size}${postersByLanguage[languageCode].file_path || postersByLanguage[languageCode]}?v=${Date.now()}${cacheBuster}`
-        }
-        
-        // Priority 2: Original language of the content
-        if (content.original_language && postersByLanguage[content.original_language]) {
-          return `${TMDB_IMAGE_BASE_URL}/${size}${postersByLanguage[content.original_language].file_path || postersByLanguage[content.original_language]}?v=${Date.now()}${cacheBuster}`
-        }
-        
-        // Priority 3: English
-        if (postersByLanguage['en']) {
-          return `${TMDB_IMAGE_BASE_URL}/${size}${postersByLanguage['en'].file_path || postersByLanguage['en']}?v=${Date.now()}${cacheBuster}`
-        }
-        
-        // Priority 4: Language-neutral (null)
-        if (postersByLanguage['null']) {
-          return `${TMDB_IMAGE_BASE_URL}/${size}${postersByLanguage['null'].file_path || postersByLanguage['null']}?v=${Date.now()}${cacheBuster}`
-        }
-        
-        // Priority 5: Any available poster
-        const availablePosters = Object.values(postersByLanguage)
-        if (availablePosters.length > 0) {
-          const firstPoster = availablePosters[0]
-          return `${TMDB_IMAGE_BASE_URL}/${size}${firstPoster.file_path || firstPoster}?v=${Date.now()}${cacheBuster}`
-        }
-      } catch (error) {
-        console.warn('Error parsing poster_paths_by_language:', error)
-        // Fall back to original poster
-      }
+      return this.getLanguageAwarePosterUrl(
+        content.poster_paths_by_language,
+        content.original_language || 'en',
+        languageCode,
+        path,
+        size
+      )
     }
-    
+
     return `${TMDB_IMAGE_BASE_URL}/${size}${path}`
   }
 
@@ -668,6 +634,38 @@ class TMDBService {
   // Get person credits (combined cast and crew)
   async getPersonCredits(id: number, language: string = 'en') {
     return this.fetchFromTMDB(`/person/${id}/combined_credits?language=${language}`)
+  }
+
+  getLanguageAwarePosterUrl(
+    posterPathsByLanguage: Record<string, string | { file_path: string, vote_average?: number }> | string | null,
+    originalLanguage: string,
+    currentLanguage: string,
+    defaultPosterPath?: string,
+    size: string = 'w500'
+  ): string {
+    let posterPath = defaultPosterPath
+
+    if (!posterPathsByLanguage) {
+      return posterPath ? this.getImageUrl(posterPath, size) : '/placeholder-poster.jpg'
+    }
+
+    if (typeof posterPathsByLanguage === 'string') {
+      try {
+        posterPathsByLanguage = JSON.parse(posterPathsByLanguage)
+      } catch {
+        return posterPath ? this.getImageUrl(posterPath, size) : '/placeholder-poster.jpg'
+      }
+    }
+
+    if (currentLanguage === originalLanguage) {
+      const originalPoster = posterPathsByLanguage[originalLanguage]
+      posterPath = (originalPoster?.file_path || originalPoster) || posterPath
+    } else {
+      const englishPoster = posterPathsByLanguage['en']
+      posterPath = (englishPoster?.file_path || englishPoster) || posterPath
+    }
+
+    return posterPath ? this.getImageUrl(posterPath, size) : '/placeholder-poster.jpg'
   }
 }
 
